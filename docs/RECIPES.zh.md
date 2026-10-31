@@ -32,7 +32,7 @@ const r = await booth.startWithTemplate(winner.id);
 if (!r.ok) showError(r.error.code);   // recipe 11
 ```
 
-从 Welcome 开始时，Q-Booth 会先执行它的 Start 关卡（PIN / 支付），然后直接进入该模板；
+从 Welcome 开始时，拍照亭应用会先执行它的 Start 关卡（PIN / 支付），然后直接进入该模板；
 如果当前在选择页，套件会先回到 Welcome。绝不要自己用 `session/start` + 按 index 的 `template/select`：
 那张卡片可能不在屏幕上。
 
@@ -42,11 +42,11 @@ if (!r.ok) showError(r.error.code);   // recipe 11
 
 ```js
 fx.burst(x, y, 150); sound.fanfare();
-booth.hold(1500);                       // the overlay stays 1.5 s after Q-Booth left Welcome
+booth.hold(1500);                       // the overlay stays 1.5 s after the booth app left Welcome
 await booth.startWithTemplate(id);
 ```
 
-### 4. 响应 Q-Booth 的流程
+### 4. 响应拍照亭应用的流程
 
 ```js
 booth.on('page', ({ to }) => { if (to === 'result') say('Nice photo!'); });
@@ -61,7 +61,7 @@ booth.on('session', ({ active, template }) => { if (!active) resetMyGame(); });
 要在拍照过程中显示在屏幕上，把 `camera` 加入 `showOn`（并保持实时取景可见：只遮住一个角或一条边，
 或者在另一块屏幕上使用 `window` 模式）。
 
-### 5. 你自己的按钮按下 Q-Booth 的按钮（仅当 Q-Booth 接受时）
+### 5. 你自己的按钮按下拍照亭应用的按钮（仅当拍照亭应用接受时）
 
 ```js
 booth.on('state', () => { captureBtn.disabled = !booth.can('camera/capture'); processBtn.hidden = !booth.can('camera/process'); });
@@ -73,12 +73,12 @@ processBtn.onclick = () => booth.send('camera/process');
 
 ### 6. 在结果页上显示内容（打印、二维码、致谢）
 
-`showOn: ["result"]`，然后只遮住屏幕的一部分（结果照片属于 Q-Booth）：
+`showOn: ["result"]`，然后只遮住屏幕的一部分（结果照片属于拍照亭应用）：
 
 ```js
 printBtn.hidden = !booth.can('result/print');
 printBtn.onclick = () => booth.send('result/print');
-qrBtn.onclick = () => booth.send('result/qr', { type: 'web' });   // opens Q-Booth's QR dialog: the overlay hides
+qrBtn.onclick = () => booth.send('result/qr', { type: 'web' });   // opens the booth app's QR dialog: the overlay hides
 ```
 
 ### 7. 第二屏应用（排队、待机循环、统计）
@@ -115,7 +115,7 @@ export default function (kit) {
 }
 ```
 
-绝不要写入 Q-Booth 的文件夹。
+绝不要写入拍照亭应用的文件夹。
 
 ### 10. 你自己的音乐
 
@@ -160,7 +160,7 @@ node tools/covers.mjs "Wedding" --out D:\covers\wedding
 每个 app.json 中使用不同的 `port`，如果两个都是 overlay：给它们设置不同的 `showOn` 页面（例如一个在
 `welcome`，一个在 `result`），或者把其中一个设为 `window` 模式放在第二块屏幕上。
 
-### 15. 开发时在终端中跟踪 Q-Booth
+### 15. 开发时在终端中跟踪拍照亭应用
 
 ```bash
 node tools/qb.mjs watch --app <id>     # page / phase / session changes as they happen

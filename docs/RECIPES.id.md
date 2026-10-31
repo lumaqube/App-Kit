@@ -32,7 +32,7 @@ const r = await booth.startWithTemplate(winner.id);
 if (!r.ok) showError(r.error.code);   // recipe 11
 ```
 
-Dari Welcome, Q-Booth menjalankan gerbang Start-nya (PIN / pembayaran) lalu langsung ke template itu; dari
+Dari Welcome, aplikasi booth menjalankan gerbang Start-nya (PIN / pembayaran) lalu langsung ke template itu; dari
 picker, kit kembali ke Welcome dulu. Jangan pernah memakai `session/start` + `template/select` berdasarkan index
 sendiri: kartunya mungkin tidak ada di layar.
 
@@ -42,11 +42,11 @@ sendiri: kartunya mungkin tidak ada di layar.
 
 ```js
 fx.burst(x, y, 150); sound.fanfare();
-booth.hold(1500);                       // the overlay stays 1.5 s after Q-Booth left Welcome
+booth.hold(1500);                       // the overlay stays 1.5 s after the booth app left Welcome
 await booth.startWithTemplate(id);
 ```
 
-### 4. Bereaksi terhadap alur Q-Booth
+### 4. Bereaksi terhadap alur aplikasi booth
 
 ```js
 booth.on('page', ({ to }) => { if (to === 'result') say('Nice photo!'); });
@@ -61,7 +61,7 @@ booth.on('session', ({ active, template }) => { if (!active) resetMyGame(); });
 Agar tampil selama kamera, tambahkan `camera` ke `showOn` (dan biarkan live view tetap terlihat: tutupi
 hanya satu pojok atau satu strip, atau pakai mode `window` di layar lain).
 
-### 5. Tombol Anda sendiri menekan tombol Q-Booth (hanya saat Q-Booth menerimanya)
+### 5. Tombol Anda sendiri menekan tombol aplikasi booth (hanya saat aplikasi booth menerimanya)
 
 ```js
 booth.on('state', () => { captureBtn.disabled = !booth.can('camera/capture'); processBtn.hidden = !booth.can('camera/process'); });
@@ -73,12 +73,12 @@ Pakai `"mock": { "auto": false }` di app.json supaya booth palsu menunggu tekana
 
 ### 6. Sesuatu di page hasil (cetak, QR, terima kasih)
 
-`showOn: ["result"]`, lalu tutupi hanya sebagian layar (foto hasilnya milik Q-Booth):
+`showOn: ["result"]`, lalu tutupi hanya sebagian layar (foto hasilnya milik aplikasi booth):
 
 ```js
 printBtn.hidden = !booth.can('result/print');
 printBtn.onclick = () => booth.send('result/print');
-qrBtn.onclick = () => booth.send('result/qr', { type: 'web' });   // opens Q-Booth's QR dialog: the overlay hides
+qrBtn.onclick = () => booth.send('result/qr', { type: 'web' });   // opens the booth app's QR dialog: the overlay hides
 ```
 
 ### 7. App layar kedua (antrean, attract loop, statistik)
@@ -115,7 +115,7 @@ export default function (kit) {
 }
 ```
 
-Jangan pernah menulis ke folder Q-Booth.
+Jangan pernah menulis ke folder aplikasi booth.
 
 ### 10. Musik Anda sendiri
 
@@ -160,7 +160,7 @@ Lakukan untuk 1920×1080, 1080×1920, 1080×1350, 2560×1080. Buka pengaturan de
 `port` berbeda di setiap app.json, keduanya overlay: beri `showOn` page yang berbeda (mis. satu di
 `welcome`, satu di `result`), atau taruh salah satunya dalam mode `window` di layar kedua.
 
-### 15. Ikuti Q-Booth dari terminal selagi Anda membangun
+### 15. Ikuti aplikasi booth dari terminal selagi Anda membangun
 
 ```bash
 node tools/qb.mjs watch --app <id>     # page / phase / session changes as they happen

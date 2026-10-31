@@ -2,18 +2,18 @@
 
 Languages: **English** · [Bahasa Indonesia](GUIDE.id.md) · [中文](GUIDE.zh.md)
 
-App Kit is the base for apps that work **with** a running Q-Booth event through Q-Booth's Local
+App Kit is the base for apps that work **with** a running event in the booth app through its Local
 API: a wheel that picks the theme, a game before the photo, a voice host, a screen on a second
 monitor, a counter, a printer queue, anything. The kit does the plumbing every such app needs, so
 an app is only its idea:
 
-- talking to Q-Booth (password kept on the server, status polled, changes turned into events),
-- template covers (Q-Booth's API has no images),
-- a desktop window that sits on top of Q-Booth only on the pages you choose and hands the screen
-  back to Q-Booth when the guest moves on,
+- talking to the booth app (password kept on the server, status polled, changes turned into events),
+- template covers (the Local API has no images),
+- a desktop window that sits on top of the booth app only on the pages you choose and hands
+  the screen back to it when the guest moves on,
 - an operator settings screen (with PIN), a waiting screen, a tray icon, secret keys,
 - layout for any screen ratio, sound made by code, confetti,
-- a fake Q-Booth for building without the real one, command-line tools, and the exe.
+- a fake booth app for building without the real one, command-line tools, and the exe.
 
 Written for human programmers and AI agents alike. Read [API.md](API.md) for the Local API
 itself and [RECIPES.md](RECIPES.md) for short, copyable answers. AI agents: also [AGENTS.md](../AGENTS.md).
@@ -27,7 +27,7 @@ Needs Windows 10/11 and Node.js 22 (npm included). In the kit folder:
 ```bash
 npm install                                  # Electron + the packager (once)
 node tools/new-app.mjs quiz "Photo Quiz"     # apps/quiz, from the template
-node tools/serve.mjs quiz --mock             # its page in a browser + a fake Q-Booth
+node tools/serve.mjs quiz --mock             # its page in a browser + a fake booth app
 #   open http://127.0.0.1:3941/  (the port is printed)
 node tools/run.mjs quiz --mock               # the same as the desktop app
 node tools/build.mjs quiz                    # dist/Photo Quiz-win32-x64/Photo Quiz.exe
@@ -36,16 +36,16 @@ node tools/build.mjs quiz                    # dist/Photo Quiz-win32-x64/Photo Q
 `apps/hello` is a complete small app (event templates as cards with covers; a tap starts the
 session). Read its four files first: `app.json`, `public/index.html`, `public/app.js`, `server.js`.
 
-With the real Q-Booth: Settings → Advanced → Local API (Expert mode) on; then in your app
-press **S** (or the tray icon) → Settings → Q-Booth: port + password → **Test connection** → Save.
+With the real booth app: Settings → Advanced → Local API (Expert mode) on; then in your app
+press **S** (or the tray icon) → Settings → Booth: port + password → **Test connection** → Save.
 
 ---
 
 ## 2. How it fits together
 
 ```
- ┌─ Q-Booth (QBooth.exe) ─────────┐        ┌─ your app (one exe, or `serve` in a browser) ──────────────┐
- │ event window (kiosk)           │        │ shell/main.js   Electron: window, tray, keys, raises Q-Booth│
+ ┌─ the booth app ────────────────┐        ┌─ your app (one exe, or `serve` in a browser) ──────────────┐
+ │ event window (kiosk)           │        │ shell/main.js   Electron: window/tray/keys, raises booth app│
  │ Local API  :8730  ◀────────────┼─HTTP───┤ core/server.js  your app's server :39xx                     │
  │ events\<id>\event.json + covers│◀─read──┤   core/watch.js   polls status -> events                    │
  └────────────────────────────────┘  only  │   core/covers.js  covers from the event folder              │
@@ -56,7 +56,7 @@ press **S** (or the tray icon) → Settings → Q-Booth: port + password → **T
 ```
 
 - The **page** (your HTML/JS) talks only to its own server. It never sees the Local API password.
-- The **server** (one per app, on 127.0.0.1) polls Q-Booth, serves covers and settings, and
+- The **server** (one per app, on 127.0.0.1) polls the booth app, serves covers and settings, and
   forwards actions. Your own server code (optional) runs inside it.
 - The **shell** (Electron) shows the page and moves the window (full / setup / hidden) as the
   server says. In a browser (`serve`) there is no shell: same page, no window rules.
@@ -88,7 +88,7 @@ App Kit/
     covers.js      covers from <qboothDir>\events\<id> (read only); listEvents, savedTemplates
     server.js      the app server: createAppServer({ appDir, mock }), window modes, endpoints
     settings.js    kit settings fields + app fields -> config.json, settings screen data
-    mock.js        a fake Q-Booth (same API), optionally with a real event's templates
+    mock.js        a fake booth app (same API), optionally with a real event's templates
     listen.js      listen with retry (a closing old copy may still hold the port)
   shell/         Electron: main.js (the desktop app), winfront.js (raise windows), icon.png / .ico
   web/           browser modules, served at /kit/
@@ -148,11 +148,11 @@ apps/<id>/
 |---|---|
 | `id` | folder name, lower-case (`[a-z][a-z0-9-]*`) |
 | `name` | shown in the window title, tray, settings, exe name |
-| `port` | this app's server port. **Unique per app** (two apps may run side by side). Kit apps use 3940+; QBooth Avatar 3920-3922, Roulette 3930 |
-| `window.mode` | `overlay`: on top of Q-Booth, only on `showOn` pages. `window`: a normal full-screen window, always shown (second screen, staff screen). The operator can switch it in Settings → Screen |
-| `window.showOn` | the Q-Booth pages your app covers: `welcome`, `categoryPicker`, `templatePicker`, `camera`, `result`, ... (see API.md) |
-| `window.hideOnDialog` | hide while Q-Booth shows a dialog (Start PIN, payment, QR, warning): **keep true** unless your app replaces that dialog |
-| `window.showWhenNoEvent` | show even when no event runs (default false: the operator's Q-Booth stays usable) |
+| `port` | this app's server port. **Unique per app** (two apps may run side by side). Kit apps use 3940+; Avatar 3920-3922, Roulette 3930 |
+| `window.mode` | `overlay`: on top of the booth app, only on `showOn` pages. `window`: a normal full-screen window, always shown (second screen, staff screen). The operator can switch it in Settings → Screen |
+| `window.showOn` | the booth app's pages your app covers: `welcome`, `categoryPicker`, `templatePicker`, `camera`, `result`, ... (see API.md) |
+| `window.hideOnDialog` | hide while the booth app shows a dialog (Start PIN, payment, QR, warning): **keep true** unless your app replaces that dialog |
+| `window.showWhenNoEvent` | show even when no event runs (default false: the operator's booth app stays usable) |
 | `window.background` | the window colour before the page paints |
 | `mock.auto` | the fake booth plays a whole session by itself after a template is chosen (true), or waits for your capture / process commands (false) |
 | `settings` | your own settings fields (section 7) |
@@ -168,7 +168,7 @@ const kit = await startKit({ texts: { en: { hi: 'Hello {name}!' }, id: { hi: 'Ha
 const { booth, t, cfg } = kit;
 
 booth.on('templates', list => draw(list));          // the running event's templates
-booth.on('page', ({ to }) => console.log('Q-Booth is on', to));
+booth.on('page', ({ to }) => console.log('the booth app is on', to));
 document.querySelector('#go').onclick = () => booth.startWithTemplate(list[0].id);
 ```
 
@@ -183,7 +183,7 @@ Copy the Content-Security-Policy `<meta>` of the template's index.html (everythi
 | | |
 |---|---|
 | `options.texts` | `{ en: {...}, id: {...}, zh: {...} }` your texts |
-| `options.waiting` | `true` (default): the kit covers your page with "Waiting for Q-Booth…" + a Settings button while Q-Booth is unreachable or runs no event. `false`: draw your own (use `booth.state.online` / `.event`) |
+| `options.waiting` | `true` (default): the kit covers your page with "Waiting for {booth}…" + a Settings button while the booth app is unreachable or runs no event. `false`: draw your own (use `booth.state.online` / `.event`) |
 | `kit.cfg` | public settings: `language`, `overlay`, your fields (non-secret, `public` not false), plus `app`, `mock`, `desktop` |
 | `kit.lang` / `kit.t(key, vars)` | `en` \| `id` \| `zh`; the text for `key` (falls back to English, then the key), `{name}` filled from vars |
 | `kit.booth` | section 5.2 |
@@ -197,7 +197,7 @@ Copy the Content-Security-Policy `<meta>` of the template's index.html (everythi
 | | |
 |---|---|
 | `booth.on('state', fn)` | every poll (~300 ms): `{ online, error, mode, overlay, event, page, session, camera, result, busy, available, templates }` |
-| `booth.on('page', fn)` | `{ from, to }` Q-Booth's page changed |
+| `booth.on('page', fn)` | `{ from, to }` the booth app's page changed |
 | `booth.on('phase', fn)` | `{ from, to, camera }` camera phase: `liveIdle` `counting` `capturing` `reveal` `shotDelay` `review` |
 | `booth.on('session', fn)` | `{ active, template: { id, name } \| null }` a session started / ended |
 | `booth.on('event', fn)` | `{ event: { id, name } \| null }` |
@@ -207,11 +207,11 @@ Copy the Content-Security-Policy `<meta>` of the template's index.html (everythi
 | `booth.state` | the last state |
 | `booth.can(action)` | is it in `available` now |
 | `await booth.send(action, params)` | any Local API action (`'camera/capture'`, `'template/select', { id }` ...) → `{ ok, accepted }` or `{ ok: false, error: { code } }`. `event/start` / `event/stop` need the settings PIN: operator only |
-| `await booth.startWithTemplate(id)` | start a session with that template from wherever Q-Booth is (Welcome: direct; a picker: back to Welcome first) |
+| `await booth.startWithTemplate(id)` | start a session with that template from wherever the booth app is (Welcome: direct; a picker: back to Welcome first) |
 | `await booth.read('events' \| 'templates' \| 'categories', params)` | reads |
 | `booth.coverUrl(templateId)` | `/cover/<id>`: the cover image, 404 when there is none on this PC (show a placeholder) |
 | `booth.categoryCoverUrl(id)`, `booth.eventCoverUrl()` | category / event covers |
-| `booth.hold(ms)` | keep the overlay up for ms (≤ 20 s) after Q-Booth moved on: finish a celebration |
+| `booth.hold(ms)` | keep the overlay up for ms (≤ 20 s) after the booth app moved on: finish a celebration |
 
 ### 5.3 Covers
 
@@ -265,7 +265,7 @@ All made by code: nothing to license. Own sound files: put them in `public/` and
 ## 6. Your server code (`<app>/server.js`, optional)
 
 For what the page cannot do: count, log, write a file outside the booth folder, call another
-service, react to Q-Booth while no page is open, add an endpoint.
+service, react to the booth app while no page is open, add an endpoint.
 
 ```js
 export default function (kit) {
@@ -295,8 +295,8 @@ export default function (kit) {
 ## 7. Settings
 
 The operator opens them with **S**, the **tray icon**, **Ctrl+Alt+Shift+S**, or by holding the
-top-left corner 3 s (PIN first when one is set). Tabs: **Q-Booth** (address, port, password +
-Test connection, Q-Booth folder, test mode), **your app** (language + your fields), **Screen**
+top-left corner 3 s (PIN first when one is set). Tabs: **Booth** (titled with the booth app's name; address, port, password +
+Test connection, booth app folder, test mode), **your app** (language + your fields), **Screen**
 (overlay, screen, hide / show, keys), **Security** (PIN).
 
 Your fields in `app.json` → `settings`:
@@ -330,22 +330,22 @@ Local API password: never commit it, never put it in a package or a screenshot.
 
 ## 8. Covers
 
-The Local API returns template ids and names, no images. The kit reads them from Q-Booth's own
+The Local API returns template ids and names, no images. The kit reads them from the booth app's own
 event folder **on the same PC**, read only:
 
 1. `<qboothDir>\events\<eventId>\event.json` → `templates[].cover` (an image in the event folder),
 2. else the template file `templates[].path` (`.qso` / `.qsc`, JSON) → `event_info.preview_image[0].mBase64`,
 3. else nothing: draw a placeholder (first letter, a colour).
 
-`qboothDir` is `C:\QBoothPro` by default (Settings → Q-Booth). Category covers: `categories[].cover`;
+`qboothDir` is `C:\QBoothPro` by default (Settings → Booth). Category covers: `categories[].cover`;
 the event's own cover: `coverImage`.
 
 - Page: `booth.coverUrl(id)`. Server: `kit.covers.coverOf(dir, eventId, templateId)` → `{ type, data, from }`.
 - Command line: `node tools/covers.mjs` lists the events; `node tools/covers.mjs "<event name | id>" --out <folder>`
   exports all covers (`01_<name>.jpg` …) + `manifest.json`.
-- An app on **another PC** (Q-Booth's Allow LAN) has no access to these files: covers 404. Design
-  for placeholders. (A `GET templates/{id}/cover` in the Local API has been proposed to the Q-Booth developer.)
-- **Never write into the Q-Booth folder.** The covers tool refuses an `--out` inside it.
+- An app on **another PC** (the booth app's Allow LAN) has no access to these files: covers 404. Design
+  for placeholders. (A `GET templates/{id}/cover` in the Local API has been proposed to the booth app's developer.)
+- **Never write into the booth app's folder.** The covers tool refuses an `--out` inside it.
 
 ---
 
@@ -353,9 +353,9 @@ the event's own cover: `coverImage`.
 
 | Mode | When | What |
 |---|---|---|
-| `full` | overlay: an event runs, Q-Booth's page is in `showOn`, no Q-Booth dialog (or `booth.hold()`); window mode: always | full screen on the chosen screen; overlay = above Q-Booth's kiosk window (re-asserted every 1.5 s) |
-| `setup` | Q-Booth not reachable / wrong password | a normal window in the middle, not on top, the kit's waiting screen with Settings |
-| `hidden` | anything else: Q-Booth's own pages, a Q-Booth dialog, no event | hidden; **Q-Booth's event window is raised first** (`shell/winfront.js`), so a window the operator had switched to never covers the booth |
+| `full` | overlay: an event runs, the booth app's page is in `showOn`, no booth app dialog (or `booth.hold()`); window mode: always | full screen on the chosen screen; overlay = above the booth app's kiosk window (re-asserted every 1.5 s) |
+| `setup` | The booth app not reachable / wrong password | a normal window in the middle, not on top, the kit's waiting screen with Settings |
+| `hidden` | anything else: the booth app's own pages, a booth app dialog, no event | hidden; **the booth app's event window is raised first** (`shell/winfront.js`), so a window the operator had switched to never covers the booth |
 
 Opening the settings shows the window full screen whatever the mode. The operator's keys (from
 anywhere): **Ctrl+Alt+Shift+S** settings, **Ctrl+Alt+Shift+H** hide / show, **Ctrl+Alt+Shift+Q**
@@ -363,23 +363,23 @@ quit; F12 developer tools and Ctrl+Q with the window focused. The tray icon show
 Settings / Hide-show / Quit. Opening the exe again opens Settings in the running copy. One copy
 per app at a time.
 
-Q-Booth's kiosk window is "always on top" only when its event blocks Alt-Tab. The overlay uses the
-higher "screen-saver" level and raises itself; when it hides it raises Q-Booth's window (the biggest
-visible QBooth.exe window that is not "QBooth - Version …"). The log shows `front: qbooth ok |
+The booth app's kiosk window is "always on top" only when its event blocks Alt-Tab. The overlay uses the
+higher "screen-saver" level and raises itself; when it hides it raises the booth app's window (its biggest
+visible window that is not the main "<Brand> - Version …" window). The log shows `front: qbooth ok |
 refused | none`.
 
 ---
 
 ## 10. Testing
 
-### 10.1 The fake Q-Booth (mock)
+### 10.1 The fake booth app (mock)
 
-`--mock` (or Settings → Q-Booth → Test mode) starts `core/mock.js` on port 8749: the same API,
+`--mock` (or Settings → Booth → Test mode) starts `core/mock.js` on port 8749: the same API,
 pages, phases and errors. Set **Test mode: borrow an event** to an event id from
 `C:\QBoothPro\events` (list: `node tools/covers.mjs`) and the mock uses its templates, so the
 covers are real. `mock.auto` in app.json: the session plays by itself, or waits for your commands.
 
-Mock-only calls (for tests): `POST /api/v1/mock/dialog {on}` (a Q-Booth dialog), `POST
+Mock-only calls (for tests): `POST /api/v1/mock/dialog {on}` (a booth app dialog), `POST
 /api/v1/mock/event {on}` (start / stop the event). Password `mock`.
 
 ### 10.2 The command line
@@ -418,16 +418,16 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 
 ---
 
-## 12. Rules (Q-Booth's and ours)
+## 12. Rules (the booth app's and ours)
 
-1. **A command = the guest's button.** Never offer an action Q-Booth would not accept now: check
+1. **A command = the guest's button.** Never offer an action the booth app would not accept now: check
    `booth.can(...)` / `available`.
-2. **Never skip a screen or a gate.** Start PIN, payment, print limits are Q-Booth's; the API keeps
+2. **Never skip a screen or a gate.** Start PIN, payment, print limits are the booth app's; the API keeps
    them, your app must not work around them.
-3. **Dialogs belong to Q-Booth.** Keep `hideOnDialog: true`; while `busy.dialog` every action fails.
+3. **Dialogs belong to the booth app.** Keep `hideOnDialog: true`; while `busy.dialog` every action fails.
 4. **Secrets stay on the server.** The Local API password and your `secret` fields never reach the
    page, a log, a screenshot or git.
-5. **Q-Booth's folders are read only.** Never write into `C:\QBoothPro` (or `qboothDir`).
+5. **The booth app's folders are read only.** Never write into `C:\QBoothPro` (or `qboothDir`).
 6. **Guests' data.** Do not keep photos, voices or faces unless the app's purpose needs it and
    the operator knows.
 7. **One port per app**, unique (app.json).
@@ -443,7 +443,7 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 - [ ] layout from `fit()`; screenshots at 16:9, 9:16, 4:5, 21:9
 - [ ] covers with placeholders (works with no cover files)
 - [ ] actions only when `booth.can()`; errors shown to the guest in plain words
-- [ ] mock test of the whole flow (`--mock`, borrowed event), then the real Q-Booth
+- [ ] mock test of the whole flow (`--mock`, borrowed event), then the real booth app
 - [ ] `node tools/build.mjs <id>`; the exe starts hidden with no event, appears on the right page,
       hands the screen back
 - [ ] no `config.json` / secrets in the package or git

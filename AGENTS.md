@@ -1,6 +1,6 @@
 # App Kit: rules for AI agents
 
-Read [docs/GUIDE.md](docs/GUIDE.md) first (the whole kit), [docs/API.md](docs/API.md) (Q-Booth's
+Read [docs/GUIDE.md](docs/GUIDE.md) first (the whole kit), [docs/API.md](docs/API.md) (the booth app's
 Local API) and [docs/RECIPES.md](docs/RECIPES.md) (copyable answers). This file is the short list
 of what must never go wrong.
 
@@ -9,7 +9,7 @@ of what must never go wrong.
 1. `node tools/new-app.mjs <id> "<Name>"` → `apps/<id>`. Never edit `templates/hello` for one app.
 2. Put app code only in `apps/<id>/`. Change `core/`, `shell/`, `web/` only when every app needs it,
    and then update docs/GUIDE.md (all three languages: GUIDE.md, GUIDE.id.md, GUIDE.zh.md).
-3. `window.showOn` = only the Q-Booth pages the app covers. Keep `hideOnDialog: true`.
+3. `window.showOn` = only the booth app's pages the app covers. Keep `hideOnDialog: true`.
 4. Every action through `booth.can(...)` / `available`; start sessions with
    `booth.startWithTemplate(id)` (it handles Welcome vs the pickers).
 5. Texts in en / id / zh. Layout from `kit.fit()` (sizes in `u`, `W`, `H`), never fixed pixels.
@@ -21,16 +21,16 @@ of what must never go wrong.
   same app runs with QBooth.exe, BleepShare.exe and XBooth.exe: write `{booth}` in texts (`kit.t()`
   fills in the connected booth app's name), never guess an exe or install folder (`core/locate.js`
   finds the booth app by its Local API port). See GUIDE §2 "Brands".
-- **Never write into Q-Booth's folder** (`C:\QBoothPro`, `qboothDir`): read only.
+- **Never write into the booth app's folder** (`C:\QBoothPro`, `qboothDir`): read only.
 - **Never put a secret anywhere but config.json**: the Local API password and `secret` fields never
   go to the page, a log line, a screenshot, a commit or a package. `config.json` is git-ignored;
   check a package for it before sharing.
-- **Never bypass Q-Booth's gates** (Start PIN, payment, print limits) or skip its screens.
+- **Never bypass the booth app's gates** (Start PIN, payment, print limits) or skip its screens.
 - **Never open a test window on the owner's working screen.** Test pages headless
   (`node tools/serve.mjs <app> --mock` + headless Chrome screenshots). To test the desktop app,
   point it at a Local API with no event running (the window stays hidden) and quit it with
   `POST /app/quit`. Stop every server and process you started.
-- **Never name the AI engine behind Q-Booth's "AI Offline"** in anything public (UI, docs, captions).
+- **Never name the AI engine behind the booth app's "AI Offline"** in anything public (UI, docs, captions).
 - Don't commit or push unless asked; end commit messages with the attribution line your harness gives.
 
 ## Machine quirks (this workspace)

@@ -1,15 +1,15 @@
-# Q-Booth Local API: the short reference
+# Booth app Local API: the short reference
 
 Languages: **English** · [Bahasa Indonesia](API.id.md) · [中文](API.zh.md)
 
-What a App Kit app needs to know about Q-Booth's Local API (API version 1). The kit's
+What a App Kit app needs to know about the booth app's Local API (API version 1). The kit's
 `core/qbooth.js` wraps all of it; you rarely build a URL yourself.
 
 ## Switching it on
 
-Q-Booth → **Settings → Advanced → Local API** (Expert mode only). Off by default. Settings:
+Booth app → **Settings → Advanced → Local API** (Expert mode only). Off by default. Settings:
 port (default **8730**), password (generated if empty), **Allow LAN** (off = 127.0.0.1 only).
-Q-Booth itself serves a sandbox at `http://<booth>:<port>/`, docs at `/docs` and a phone remote
+The booth app itself serves a sandbox at `http://<booth>:<port>/`, docs at `/docs` and a phone remote
 control at `/remote`. Public docs: https://www.lumaqube.com/docs/local-api
 
 ## Transport and authentication
@@ -54,7 +54,7 @@ An action only hands the command to the app: **the effect shows in the next `sta
 
 `index` is 1-based, in the order the guest sees the cards. When both `id` and `index` come, `id` wins.
 
-**Rules Q-Booth keeps:** a command presses the same button the guest would, with all its guards.
+**Rules the booth app keeps:** a command presses the same button the guest would, with all its guards.
 Nothing paid is bypassed (Start PIN, payment, print limits apply). A wrong state is refused, never
 queued. **A dialog on screen blocks every action** (`dialog_open`); so does processing (`processing`).
 
@@ -103,7 +103,7 @@ queued. **A dialog on screen blocks every action** (`dialog_open`); so does proc
 | 409 | `not_configured` | QR type not set up |
 | 429 | `too_many_attempts` | too many wrong passwords |
 
-The kit adds one of its own: `offline` (Q-Booth did not answer at all: off, Local API off, wrong port).
+The kit adds one of its own: `offline` (the booth app did not answer at all: off, Local API off, wrong port).
 
 ## What the API does not give (and the kit's answers)
 
@@ -111,8 +111,8 @@ The kit adds one of its own: `offline` (Q-Booth did not answer at all: off, Loca
 |---|---|
 | Template / category / event **images** | read from the event folder on the booth PC: `core/covers.js`, `/cover/<id>`, `tools/covers.mjs` (same PC only) |
 | **Push** notifications | polling + change events (`core/watch.js`, `web/qbooth.js`) |
-| The result **photo** and its QR link | not available; `result/qr` opens Q-Booth's own QR dialog |
+| The result **photo** and its QR link | not available; `result/qr` opens the booth app's own QR dialog |
 | Templates of a stopped event | `GET templates?eventId=` (API) or `covers.savedTemplates()` (files) |
 
-Proposed to the Q-Booth developer (not in the API yet): `GET templates/{id}/cover` (images over the
-LAN), outbound triggers (Q-Booth calls a URL on session start / photo / print / end).
+Proposed to the booth app's developer (not in the API yet): `GET templates/{id}/cover` (images over the
+LAN), outbound triggers (the booth app calls a URL on session start / photo / print / end).

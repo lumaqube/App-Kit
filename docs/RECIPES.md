@@ -32,7 +32,7 @@ const r = await booth.startWithTemplate(winner.id);
 if (!r.ok) showError(r.error.code);   // recipe 11
 ```
 
-From Welcome Q-Booth runs its Start gate (PIN / payment) and goes straight to that template; from
+From Welcome the booth app runs its Start gate (PIN / payment) and goes straight to that template; from
 a picker the kit goes back to Welcome first. Never use `session/start` + `template/select` by index
 yourself: the card may not be on screen.
 
@@ -42,11 +42,11 @@ yourself: the card may not be on screen.
 
 ```js
 fx.burst(x, y, 150); sound.fanfare();
-booth.hold(1500);                       // the overlay stays 1.5 s after Q-Booth left Welcome
+booth.hold(1500);                       // the overlay stays 1.5 s after the booth app left Welcome
 await booth.startWithTemplate(id);
 ```
 
-### 4. React to Q-Booth's flow
+### 4. React to the booth app's flow
 
 ```js
 booth.on('page', ({ to }) => { if (to === 'result') say('Nice photo!'); });
@@ -61,7 +61,7 @@ booth.on('session', ({ active, template }) => { if (!active) resetMyGame(); });
 To be on screen during the camera, add `camera` to `showOn` (and keep the live view visible: cover
 only a corner or a strip, or use `window` mode on another screen).
 
-### 5. Your own button presses Q-Booth's (only when Q-Booth accepts it)
+### 5. Your own button presses the booth app's (only when the booth app accepts it)
 
 ```js
 booth.on('state', () => { captureBtn.disabled = !booth.can('camera/capture'); processBtn.hidden = !booth.can('camera/process'); });
@@ -73,12 +73,12 @@ Use `"mock": { "auto": false }` in app.json so the fake booth waits for these pr
 
 ### 6. Something on the result page (print, QR, thanks)
 
-`showOn: ["result"]`, then cover only part of the screen (the result photo is Q-Booth's):
+`showOn: ["result"]`, then cover only part of the screen (the result photo is the booth app's):
 
 ```js
 printBtn.hidden = !booth.can('result/print');
 printBtn.onclick = () => booth.send('result/print');
-qrBtn.onclick = () => booth.send('result/qr', { type: 'web' });   // opens Q-Booth's QR dialog: the overlay hides
+qrBtn.onclick = () => booth.send('result/qr', { type: 'web' });   // opens the booth app's QR dialog: the overlay hides
 ```
 
 ### 7. A second-screen app (queue, attract loop, stats)
@@ -115,7 +115,7 @@ export default function (kit) {
 }
 ```
 
-Never write into Q-Booth's folder.
+Never write into the booth app's folder.
 
 ### 10. Your own music
 
@@ -160,7 +160,7 @@ Do 1920×1080, 1080×1920, 1080×1350, 2560×1080. Open the settings with
 Different `port` in each app.json, both overlay: give them different `showOn` pages (e.g. one on
 `welcome`, one on `result`), or put one in `window` mode on a second screen.
 
-### 15. Follow Q-Booth from the terminal while you build
+### 15. Follow the booth app from the terminal while you build
 
 ```bash
 node tools/qb.mjs watch --app <id>     # page / phase / session changes as they happen

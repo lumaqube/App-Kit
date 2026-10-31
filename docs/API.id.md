@@ -1,15 +1,15 @@
-# Q-Booth Local API: referensi singkat
+# Local API aplikasi booth: referensi singkat
 
 Bahasa: [English](API.md) · **Bahasa Indonesia** · [中文](API.zh.md)
 
-Yang perlu diketahui app App Kit tentang Local API Q-Booth (API versi 1). `core/qbooth.js`
+Yang perlu diketahui app App Kit tentang Local API aplikasi booth (API versi 1). `core/qbooth.js`
 milik kit membungkus semuanya; Anda jarang perlu menyusun URL sendiri.
 
 ## Menyalakannya
 
-Q-Booth → **Settings → Advanced → Local API** (hanya di Expert mode). Mati secara default. Pengaturan:
+Aplikasi booth → **Settings → Advanced → Local API** (hanya di Expert mode). Mati secara default. Pengaturan:
 port (default **8730**), password (dibuatkan otomatis kalau kosong), **Allow LAN** (mati = hanya 127.0.0.1).
-Q-Booth sendiri menyajikan sandbox di `http://<booth>:<port>/`, dokumentasi di `/docs` dan remote
+Aplikasi booth sendiri menyajikan sandbox di `http://<booth>:<port>/`, dokumentasi di `/docs` dan remote
 control untuk ponsel di `/remote`. Dokumentasi publik: https://www.lumaqube.com/docs/local-api
 
 ## Transport dan autentikasi
@@ -54,7 +54,7 @@ Sebuah aksi hanya menyerahkan perintah ke app: **efeknya terlihat di `status` be
 
 `index` dimulai dari 1, sesuai urutan kartu yang dilihat tamu. Kalau `id` dan `index` sama-sama dikirim, `id` yang dipakai.
 
-**Aturan yang dijaga Q-Booth:** sebuah perintah menekan tombol yang sama dengan yang akan ditekan tamu, lengkap dengan semua pengamannya.
+**Aturan yang dijaga aplikasi booth:** sebuah perintah menekan tombol yang sama dengan yang akan ditekan tamu, lengkap dengan semua pengamannya.
 Tidak ada yang berbayar yang dilewati (Start PIN, pembayaran, batas cetak tetap berlaku). State yang salah ditolak, tidak pernah
 diantrekan. **Dialog di layar memblokir setiap aksi** (`dialog_open`); begitu juga saat memproses (`processing`).
 
@@ -103,7 +103,7 @@ diantrekan. **Dialog di layar memblokir setiap aksi** (`dialog_open`); begitu ju
 | 409 | `not_configured` | tipe QR belum diatur |
 | 429 | `too_many_attempts` | terlalu banyak password salah |
 
-Kit menambahkan satu kode miliknya sendiri: `offline` (Q-Booth sama sekali tidak menjawab: mati, Local API mati, port salah).
+Kit menambahkan satu kode miliknya sendiri: `offline` (aplikasi booth sama sekali tidak menjawab: mati, Local API mati, port salah).
 
 ## Yang tidak diberikan API (dan jawaban kit)
 
@@ -111,8 +111,8 @@ Kit menambahkan satu kode miliknya sendiri: `offline` (Q-Booth sama sekali tidak
 |---|---|
 | **Gambar** template / kategori / event | dibaca dari folder event di PC booth: `core/covers.js`, `/cover/<id>`, `tools/covers.mjs` (hanya PC yang sama) |
 | Notifikasi **push** | polling + event perubahan (`core/watch.js`, `web/qbooth.js`) |
-| **Foto** hasil dan link QR-nya | tidak tersedia; `result/qr` membuka dialog QR milik Q-Booth sendiri |
+| **Foto** hasil dan link QR-nya | tidak tersedia; `result/qr` membuka dialog QR milik aplikasi booth sendiri |
 | Template dari event yang sudah dihentikan | `GET templates?eventId=` (API) atau `covers.savedTemplates()` (file) |
 
-Sudah diusulkan ke developer Q-Booth (belum ada di API): `GET templates/{id}/cover` (gambar lewat
-LAN), trigger keluar (Q-Booth memanggil URL saat sesi mulai / foto / cetak / selesai).
+Sudah diusulkan ke developer aplikasi booth (belum ada di API): `GET templates/{id}/cover` (gambar lewat
+LAN), trigger keluar (aplikasi booth memanggil URL saat sesi mulai / foto / cetak / selesai).

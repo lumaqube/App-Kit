@@ -1,15 +1,15 @@
-# Q-Booth Local API：简明参考
+# 拍照亭应用 Local API：简明参考
 
 语言：[English](API.md) · [Bahasa Indonesia](API.id.md) · **中文**
 
-App Kit 应用需要了解的 Q-Booth Local API 知识（API 版本 1）。套件的
+App Kit 应用需要了解的拍照亭应用 Local API 知识（API 版本 1）。套件的
 `core/qbooth.js` 封装了全部内容；你很少需要自己拼 URL。
 
 ## 开启
 
-Q-Booth → **Settings → Advanced → Local API**（仅 Expert mode，专家模式）。默认关闭。设置项：
+拍照亭应用 → **Settings → Advanced → Local API**（仅 Expert mode，专家模式）。默认关闭。设置项：
 端口（默认 **8730**）、密码（留空则自动生成）、**Allow LAN**（关闭 = 仅限 127.0.0.1）。
-Q-Booth 自身在 `http://<booth>:<port>/` 提供一个沙盒，在 `/docs` 提供文档，在 `/remote` 提供手机遥控器。
+拍照亭应用自身在 `http://<booth>:<port>/` 提供一个沙盒，在 `/docs` 提供文档，在 `/remote` 提供手机遥控器。
 公开文档：https://www.lumaqube.com/docs/local-api
 
 ## 传输与认证
@@ -54,7 +54,7 @@ Q-Booth 自身在 `http://<booth>:<port>/` 提供一个沙盒，在 `/docs` 提�
 
 `index` 从 1 开始，按宾客看到的卡片顺序计。同时提供 `id` 和 `index` 时，以 `id` 为准。
 
-**Q-Booth 坚持的规则：** 命令按下的就是宾客会按的同一个按钮，带有所有相同的防护。
+**拍照亭应用坚持的规则：** 命令按下的就是宾客会按的同一个按钮，带有所有相同的防护。
 任何付费环节都不会被绕过（Start PIN、支付、打印限制照常生效）。状态不对就拒绝，绝不排队。
 **屏幕上有对话框时，所有操作都会被阻止**（`dialog_open`）；正在处理时也一样（`processing`）。
 
@@ -103,7 +103,7 @@ Q-Booth 自身在 `http://<booth>:<port>/` 提供一个沙盒，在 `/docs` 提�
 | 409 | `not_configured` | 该二维码类型未配置 |
 | 429 | `too_many_attempts` | 密码错误次数过多 |
 
-套件额外增加了一个：`offline`（Q-Booth 完全没有响应：未运行、Local API 未开启、端口错误）。
+套件额外增加了一个：`offline`（拍照亭应用完全没有响应：未运行、Local API 未开启、端口错误）。
 
 ## API 不提供的内容（以及套件的解决办法）
 
@@ -111,8 +111,8 @@ Q-Booth 自身在 `http://<booth>:<port>/` 提供一个沙盒，在 `/docs` 提�
 |---|---|
 | 模板 / 分类 / 活动的**图片** | 从拍照亭电脑上的活动文件夹读取：`core/covers.js`、`/cover/<id>`、`tools/covers.mjs`（仅限同一台电脑） |
 | **推送**通知 | 轮询 + 变化事件（`core/watch.js`、`web/qbooth.js`） |
-| 结果**照片**及其二维码链接 | 无法获取；`result/qr` 会打开 Q-Booth 自己的二维码对话框 |
+| 结果**照片**及其二维码链接 | 无法获取；`result/qr` 会打开拍照亭应用自己的二维码对话框 |
 | 已停止活动的模板 | `GET templates?eventId=`（API）或 `covers.savedTemplates()`（文件） |
 
-已向 Q-Booth 开发者提议（API 中尚未提供）：`GET templates/{id}/cover`（通过局域网获取图片）、
-出站触发（Q-Booth 在拍摄流程开始 / 拍照 / 打印 / 结束时调用一个 URL）。
+已向拍照亭应用的开发者提议（API 中尚未提供）：`GET templates/{id}/cover`（通过局域网获取图片）、
+出站触发（拍照亭应用在拍摄流程开始 / 拍照 / 打印 / 结束时调用一个 URL）。
