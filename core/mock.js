@@ -1,6 +1,7 @@
 // A fake Q-Booth Local API (v1) for building and testing without the real app. Same reply shapes,
 // pages, phases and error codes as the real one (docs/API.md).
-//   startMock({ port, password, eventId, eventName, templates, auto })
+//   startMock({ port, password, eventId, eventName, templates, auto, appName })
+//   appName: the product name it reports ("QBooth (mock)", "XBooth (mock)", ...): brand tests
 //   templates: [{ id, name }] (e.g. savedTemplates() of a real event: the covers then work too)
 //   auto: true  -> a session plays by itself after the template is chosen (3 shots, review,
 //                  processing, result, back to Welcome): good for overlay apps that only start it
@@ -13,7 +14,7 @@ import { listenRetry } from './listen.js';
 const DEMO = ['Neon Party', 'Retro 80s', 'Golden Hour', 'Comic Pop', 'Space Trip', 'Under the Sea', 'Royal Gala', 'Candy Land']
   .map((name, i) => ({ id: 'demo_' + (i + 1), name }));
 
-export function startMock({ port = 8749, password = 'mock', eventId = 'mock_EVENT', eventName = 'Mock Party', templates = DEMO, auto = true } = {}) {
+export function startMock({ port = 8749, password = 'mock', eventId = 'mock_EVENT', eventName = 'Mock Party', templates = DEMO, auto = true, appName = 'QBooth (mock)' } = {}) {
   const TEMPLATES = templates.map((t, i) => ({ id: t.id, name: t.name, index: i + 1 }));
   const s = {
     event: { id: eventId, name: eventName },
@@ -42,7 +43,7 @@ export function startMock({ port = 8749, password = 'mock', eventId = 'mock_EVEN
   }
 
   const status = () => ({
-    app: { name: 'QBooth (mock)', version: '0.0.0', apiVersion: '1' },
+    app: { name: appName, version: '0.0.0', apiVersion: '1' },
     event: s.event, page: s.event ? s.page : 'none', session: s.session,
     camera: s.camera, result: s.result, busy: s.busy, available: available(),
   });

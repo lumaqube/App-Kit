@@ -2,7 +2,7 @@
 
 Languages: **English** · [Bahasa Indonesia](API.id.md) · [中文](API.zh.md)
 
-What a QBoothKit app needs to know about Q-Booth's Local API (API version 1). The kit's
+What a App Kit app needs to know about Q-Booth's Local API (API version 1). The kit's
 `core/qbooth.js` wraps all of it; you rarely build a URL yourself.
 
 ## Switching it on
@@ -107,7 +107,7 @@ The kit adds one of its own: `offline` (Q-Booth did not answer at all: off, Loca
 
 ## What the API does not give (and the kit's answers)
 
-| Missing | QBoothKit |
+| Missing | App Kit |
 |---|---|
 | Template / category / event **images** | read from the event folder on the booth PC: `core/covers.js`, `/cover/<id>`, `tools/covers.mjs` (same PC only) |
 | **Push** notifications | polling + change events (`core/watch.js`, `web/qbooth.js`) |

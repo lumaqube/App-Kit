@@ -1,8 +1,8 @@
-# QBoothKit 指南
+# App Kit 指南
 
 语言：[English](GUIDE.md) · [Bahasa Indonesia](GUIDE.id.md) · **中文**
 
-QBoothKit 是一个基础框架，用来开发通过 Q-Booth 的 Local API **配合**正在运行的 Q-Booth 活动工作的应用：
+App Kit 是一个基础框架，用来开发通过 Q-Booth 的 Local API **配合**正在运行的 Q-Booth 活动工作的应用：
 选主题的转盘、拍照前的小游戏、语音主持、第二块显示器上的画面、计数器、打印队列，什么都可以。
 这类应用都需要的底层工作由套件完成，所以一个应用只需要关心它自己的创意：
 
@@ -61,10 +61,24 @@ node tools/build.mjs quiz                    # dist/Photo Quiz-win32-x64/Photo Q
 
 ---
 
+### 品牌：QBooth、BleepShare、XBooth
+
+拍照亭应用是同一个程序的三个品牌版本：**QBooth.exe**（报告 "QBooth"）、**BleepShare.exe**
+（"BleepShareAI"）和 **XBooth.exe**（"XBooth"），各有自己的安装文件夹（默认 C:\QBoothAIV5、
+C:\BleepShareV5、C:\XBoothV5）。Local API 相同。因此：
+
+- **不要在应用界面中写品牌名称。** 在文本中写 `{booth}`：`kit.t()` 会填入所连接的拍照亭应用名称
+  （`status.app.name`，"QBooth" 显示为 "Q-Booth"），或操作员的 **品牌名称** 设置，或在尚未连接时
+  使用中性词（"the booth app" / "aplikasi booth" / "拍照亭应用"）。`kit.brand` 和 `booth.state.brand` 保存该名称。
+- 套件通过 **监听 Local API 端口的进程**（`core/locate.js`）找到拍照亭应用：它的 pid（用于把活动窗口
+  提到前面）和它的文件夹（封面）。不猜测任何 exe 或文件夹名称；常用文件夹只是后备。
+  `设置 → 拍照亭应用文件夹` 可以覆盖。
+- 用模拟器测试其他品牌：在 config.json 中设置 `"mockBrand": "XBooth"`（或 `BleepShareAI`）。
+
 ## 3. 文件夹结构
 
 ```
-QBoothKit/
+App Kit/
   core/          Node modules (no dependencies)
     qbooth.js      Local API client: createClient({ host, port, password })
     watch.js       status polling -> events (page, phase, session, event, templates, busy, online)

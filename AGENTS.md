@@ -1,4 +1,4 @@
-# QBoothKit: rules for AI agents
+# App Kit: rules for AI agents
 
 Read [docs/GUIDE.md](docs/GUIDE.md) first (the whole kit), [docs/API.md](docs/API.md) (Q-Booth's
 Local API) and [docs/RECIPES.md](docs/RECIPES.md) (copyable answers). This file is the short list
@@ -17,6 +17,10 @@ of what must never go wrong.
 
 ## Never
 
+- **Never write a brand name (QBooth, Q-Booth, BleepShare, XBooth) in anything a user sees.** The
+  same app runs with QBooth.exe, BleepShare.exe and XBooth.exe: write `{booth}` in texts (`kit.t()`
+  fills in the connected booth app's name), never guess an exe or install folder (`core/locate.js`
+  finds the booth app by its Local API port). See GUIDE §2 "Brands".
 - **Never write into Q-Booth's folder** (`C:\QBoothPro`, `qboothDir`): read only.
 - **Never put a secret anywhere but config.json**: the Local API password and `secret` fields never
   go to the page, a log line, a screenshot, a commit or a package. `config.json` is git-ignored;

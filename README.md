@@ -1,10 +1,13 @@
-# QBoothKit
+# App Kit
 
 The base for apps that work with a running Q-Booth event through Q-Booth's **Local API**: a theme
 roulette, a game before the photo, a host on a second screen, anything. The kit does the plumbing
 (Q-Booth connection, covers, an overlay window that appears only on the pages you choose, operator
 settings with PIN, layout for any screen, sound by code, a fake Q-Booth, tools, the exe); an app
 is only its idea.
+
+Works with every brand build of the booth app: **QBooth.exe**, **BleepShare.exe**, **XBooth.exe**.
+Apps never show a brand of their own: the name comes from the connected booth app (GUIDE §2 "Brands").
 
 | | English | Bahasa Indonesia | 中文 |
 |---|---|---|---|

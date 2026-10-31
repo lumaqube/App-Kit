@@ -1,8 +1,8 @@
-# QBoothKit guide
+# App Kit guide
 
 Languages: **English** · [Bahasa Indonesia](GUIDE.id.md) · [中文](GUIDE.zh.md)
 
-QBoothKit is the base for apps that work **with** a running Q-Booth event through Q-Booth's Local
+App Kit is the base for apps that work **with** a running Q-Booth event through Q-Booth's Local
 API: a wheel that picks the theme, a game before the photo, a voice host, a screen on a second
 monitor, a counter, a printer queue, anything. The kit does the plumbing every such app needs, so
 an app is only its idea:
@@ -63,10 +63,25 @@ press **S** (or the tray icon) → Settings → Q-Booth: port + password → **T
 
 ---
 
+### Brands: QBooth, BleepShare, XBooth
+
+The booth app ships as three brand builds of the same program: **QBooth.exe** (reports "QBooth"),
+**BleepShare.exe** ("BleepShareAI") and **XBooth.exe** ("XBooth"), each with its own install
+folder (C:\QBoothAIV5, C:\BleepShareV5, C:\XBoothV5 by default). The Local API is the same. So:
+
+- **Never write a brand name in an app's interface.** Write `{booth}` in your texts: `kit.t()`
+  fills it with the connected booth app's name (`status.app.name`, "QBooth" shown as "Q-Booth"),
+  or the operator's **Brand name** setting, or before any contact a neutral word ("the booth app" /
+  "aplikasi booth" / "拍照亭应用"). `kit.brand` and `booth.state.brand` hold it.
+- The kit finds the booth app by the **process listening on the Local API port** (`core/locate.js`):
+  its pid (to raise its event window), its folder (covers). No exe or folder name is guessed;
+  the usual folders are only a fallback. `Settings → Booth app folder` overrides it.
+- Test another brand with the mock: `"mockBrand": "XBooth"` (or `BleepShareAI`) in config.json.
+
 ## 3. Folder layout
 
 ```
-QBoothKit/
+App Kit/
   core/          Node modules (no dependencies)
     qbooth.js      Local API client: createClient({ host, port, password })
     watch.js       status polling -> events (page, phase, session, event, templates, busy, online)

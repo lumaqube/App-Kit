@@ -8,9 +8,9 @@ import { Fx } from '/kit/fx.js';
 // 1. Texts in the three languages (kit.t picks the one set in Settings)
 const kit = await startKit({
   texts: {
-    en: { headline: 'Pick your theme!', tap: 'Tap a card to start', ready: 'Get ready!', err: 'Q-Booth said: {code}' },
-    id: { headline: 'Pilih temamu!', tap: 'Sentuh kartu untuk mulai', ready: 'Bersiap!', err: 'Kata Q-Booth: {code}' },
-    zh: { headline: '选择你的主题！', tap: '点一张卡片开始', ready: '准备好！', err: 'Q-Booth 回复：{code}' },
+    en: { headline: 'Pick your theme!', tap: 'Tap a card to start', ready: 'Get ready!', err: '{booth} said: {code}' },
+    id: { headline: 'Pilih temamu!', tap: 'Sentuh kartu untuk mulai', ready: 'Bersiap!', err: 'Kata {booth}: {code}' },
+    zh: { headline: '选择你的主题！', tap: '点一张卡片开始', ready: '准备好！', err: '{booth}回复：{code}' },
   },
 });
 const { booth, t, cfg } = kit;

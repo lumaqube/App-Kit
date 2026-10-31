@@ -2,7 +2,7 @@
 
 Bahasa: [English](API.md) · **Bahasa Indonesia** · [中文](API.zh.md)
 
-Yang perlu diketahui app QBoothKit tentang Local API Q-Booth (API versi 1). `core/qbooth.js`
+Yang perlu diketahui app App Kit tentang Local API Q-Booth (API versi 1). `core/qbooth.js`
 milik kit membungkus semuanya; Anda jarang perlu menyusun URL sendiri.
 
 ## Menyalakannya
@@ -107,7 +107,7 @@ Kit menambahkan satu kode miliknya sendiri: `offline` (Q-Booth sama sekali tidak
 
 ## Yang tidak diberikan API (dan jawaban kit)
 
-| Tidak ada | QBoothKit |
+| Tidak ada | App Kit |
 |---|---|
 | **Gambar** template / kategori / event | dibaca dari folder event di PC booth: `core/covers.js`, `/cover/<id>`, `tools/covers.mjs` (hanya PC yang sama) |
 | Notifikasi **push** | polling + event perubahan (`core/watch.js`, `web/qbooth.js`) |

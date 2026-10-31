@@ -1,4 +1,4 @@
-# Resep QBoothKit
+# Resep App Kit
 
 Bahasa: [English](RECIPES.md) · **Bahasa Indonesia** · [中文](RECIPES.zh.md)
 

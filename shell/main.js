@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { startFront, raiseQBooth, raiseSelf, stopFront } from './winfront.js';
+import { startFront, raiseBooth, raiseSelf, stopFront } from './winfront.js';
 import { createFab } from './fab.js';
 
 const KIT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,7 +73,7 @@ if (!(await getLock())) {
       if (!win || win.isDestroyed() || !ready) return;
       if (mode === 'hidden') {
         // hand the screen back: Q-Booth's event window first, or the window that was in front before would show
-        if (win.isVisible()) { if (overlay) raiseQBooth(); setTimeout(() => { if (mode === 'hidden' && win && !win.isDestroyed()) win.hide(); }, 150); }
+        if (win.isVisible()) { if (overlay) raiseBooth(server.boothPid()); setTimeout(() => { if (mode === 'hidden' && win && !win.isDestroyed()) win.hide(); }, 150); }
       } else if (mode === 'full') {
         win.setAlwaysOnTop(overlay, 'screen-saver');
         win.setBounds(box);
@@ -154,7 +154,7 @@ if (!(await getLock())) {
     win.once('ready-to-show', () => {
       ready = true;
       applyMode();
-      if (overlay) tray.displayBalloon?.({ title: `${manifest.name} is running`, content: 'It appears on top of Q-Booth when an event shows the right page. Settings: this icon, or Ctrl+Alt+Shift+S.' });
+      if (overlay) tray.displayBalloon?.({ title: `${manifest.name} is running`, content: 'It appears on top of the booth app when an event shows the right page. Settings: this icon, or Ctrl+Alt+Shift+S.' });
     });
     const wc = win.webContents;
     wc.on('render-process-gone', (e, d) => { console.error(`page process gone: ${d.reason}, reloading`); setTimeout(() => win?.reload(), 1000); });

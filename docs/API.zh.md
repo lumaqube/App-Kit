@@ -2,7 +2,7 @@
 
 语言：[English](API.md) · [Bahasa Indonesia](API.id.md) · **中文**
 
-QBoothKit 应用需要了解的 Q-Booth Local API 知识（API 版本 1）。套件的
+App Kit 应用需要了解的 Q-Booth Local API 知识（API 版本 1）。套件的
 `core/qbooth.js` 封装了全部内容；你很少需要自己拼 URL。
 
 ## 开启
@@ -107,7 +107,7 @@ Q-Booth 自身在 `http://<booth>:<port>/` 提供一个沙盒，在 `/docs` 提�
 
 ## API 不提供的内容（以及套件的解决办法）
 
-| 缺少 | QBoothKit |
+| 缺少 | App Kit |
 |---|---|
 | 模板 / 分类 / 活动的**图片** | 从拍照亭电脑上的活动文件夹读取：`core/covers.js`、`/cover/<id>`、`tools/covers.mjs`（仅限同一台电脑） |
 | **推送**通知 | 轮询 + 变化事件（`core/watch.js`、`web/qbooth.js`） |

@@ -1,4 +1,4 @@
-# QBoothKit 实用示例
+# App Kit 实用示例
 
 语言：[English](RECIPES.md) · [Bahasa Indonesia](RECIPES.id.md) · **中文**
 

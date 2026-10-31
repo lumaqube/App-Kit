@@ -1,4 +1,4 @@
-# QBoothKit recipes
+# App Kit recipes
 
 Languages: **English** · [Bahasa Indonesia](RECIPES.id.md) · [中文](RECIPES.zh.md)
 

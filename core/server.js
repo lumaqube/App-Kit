@@ -26,6 +26,7 @@ import { createClient, ACTIONS, READS } from './qbooth.js';
 import { watchBooth } from './watch.js';
 import { startMock } from './mock.js';
 import * as covers from './covers.js';
+import { locateBooth, resolveBoothDir, brandName } from './locate.js';
 import { loadConfig, readSettings, saveSettings, publicValues, configFile } from './settings.js';
 
 const KIT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,10 +55,11 @@ export async function createAppServer({ appDir, mock } = {}) {
   // ---- Q-Booth ----
   let conn = { ...cfg.qbooth };
   if (MOCK) {
-    const real = cfg.mockEvent && covers.savedTemplates(cfg.qboothDir, cfg.mockEvent);
-    const ev = real?.length ? covers.readEvent(cfg.qboothDir, cfg.mockEvent) : null;
+    const dir = resolveBoothDir(cfg.qboothDir, null);
+    const real = cfg.mockEvent && covers.savedTemplates(dir, cfg.mockEvent);
+    const ev = real?.length ? covers.readEvent(dir, cfg.mockEvent) : null;
     conn = { host: '127.0.0.1', port: 8749, password: 'mock' };
-    listening.push(await startMock({ ...conn, auto: manifest.mock?.auto ?? true, ...(real?.length ? { eventId: cfg.mockEvent, eventName: ev?.name || cfg.mockEvent, templates: real } : {}) }));
+    listening.push(await startMock({ ...conn, appName: (cfg.mockBrand || 'QBooth') + ' (mock)', auto: manifest.mock?.auto ?? true, ...(real?.length ? { eventId: cfg.mockEvent, eventName: ev?.name || cfg.mockEvent, templates: real } : {}) }));
   }
   const client = createClient(conn);
   const watch = watchBooth(client, { pollMs: cfg.pollMs });
@@ -78,8 +80,27 @@ export async function createAppServer({ appDir, mock } = {}) {
     if (w.hideOnDialog !== false && s.busy?.dialog) return 'hidden';
     return w.showOn.includes(s.page) ? 'full' : 'hidden';
   }
+  // ---- the booth app: its name (brand) and where it runs ----
+  // Brand builds: QBooth.exe / BleepShare.exe / XBooth.exe. The name comes from the Local API
+  // (status.app.name), the folder and pid from the process listening on the Local API port.
+  let located = null, locating = false, locatedAt = 0, lastBrand = null;
+  async function relocate() {
+    if (locating || MOCK) return;
+    locating = true;
+    try { located = await locateBooth(conn.host, conn.port); locatedAt = Date.now(); if (located) log(`booth app: ${located.exe} (pid ${located.pid})`); }
+    finally { locating = false; }
+  }
+  watch.on('online', relocate);
+  watch.on('status', s => {
+    const b = brandName(s.app?.name);
+    if (b) lastBrand = b;
+    if (!MOCK && (!located || located.pid && Date.now() - locatedAt > 60000) && Date.now() - locatedAt > 10000) relocate();
+  });
+  const boothDir = () => resolveBoothDir(cfg.qboothDir, located);
+  const brand = () => cfg.brandName || lastBrand || null; // null = not known yet: say "the booth app"
+
   function statusText() {
-    if (!watch.state.online) return watch.state.error === 'unauthorized' ? 'Wrong Local API password' : 'Waiting for Q-Booth (Local API)';
+    if (!watch.state.online) return watch.state.error === 'unauthorized' ? 'Wrong Local API password' : `Waiting for ${brand() || 'the booth app'} (Local API)`;
     const s = watch.state.status;
     return s?.event ? `Event: ${s.event.name} · ${s.page}` : 'Connected · waiting for an event';
   }
@@ -126,14 +147,14 @@ export async function createAppServer({ appDir, mock } = {}) {
     if (p === '/state') {
       const s = watch.state.status;
       return sendJson(res, 200, {
-        online: watch.state.online, error: watch.state.error, mode: state.mode, overlay: !!cfg.overlay,
+        online: watch.state.online, error: watch.state.error, mode: state.mode, overlay: !!cfg.overlay, brand: brand(),
         event: s?.event || null, page: s?.page || 'none', session: s?.session || null, camera: s?.camera || null,
         result: s?.result || null, busy: s?.busy || null, available: s?.available || [], templates: watch.state.templates,
       });
     }
-    if (p.startsWith('/cover/')) return sendImage(res, (u.searchParams.get('event') || watch.state.status?.event?.id) && covers.coverOf(cfg.qboothDir, u.searchParams.get('event') || watch.state.status.event.id, p.slice(7)));
-    if (p.startsWith('/category-cover/')) return sendImage(res, watch.state.status?.event && covers.categoryCover(cfg.qboothDir, watch.state.status.event.id, p.slice(16)));
-    if (p === '/event-cover') return sendImage(res, watch.state.status?.event && covers.eventCover(cfg.qboothDir, watch.state.status.event.id));
+    if (p.startsWith('/cover/')) return sendImage(res, (u.searchParams.get('event') || watch.state.status?.event?.id) && covers.coverOf(boothDir(), u.searchParams.get('event') || watch.state.status.event.id, p.slice(7)));
+    if (p.startsWith('/category-cover/')) return sendImage(res, watch.state.status?.event && covers.categoryCover(boothDir(), watch.state.status.event.id, p.slice(16)));
+    if (p === '/event-cover') return sendImage(res, watch.state.status?.event && covers.eventCover(boothDir(), watch.state.status.event.id));
     if (p.startsWith('/qb/')) {
       const cmd = p.slice(4);
       if (req.method === 'GET' && READS.includes(cmd)) {
@@ -173,7 +194,7 @@ export async function createAppServer({ appDir, mock } = {}) {
     }
     if (p === '/settings' || p.startsWith('/settings/') || p === '/app/hide' || p === '/app/quit') {
       if (!pinOk(req.headers['x-settings-pin'])) return sendJson(res, 403, { ok: false, error: { code: 'pin' } });
-      if (req.method === 'GET' && p === '/settings') return sendJson(res, 200, { ...readSettings(cfg, manifest), file: configFile(appDir), displays: hooks.displays, desktop: hooks.desktop, app: { id: manifest.id, name: manifest.name }, shortcuts: manifest.shortcuts || [] });
+      if (req.method === 'GET' && p === '/settings') return sendJson(res, 200, { ...readSettings(cfg, manifest), file: configFile(appDir), displays: hooks.displays, desktop: hooks.desktop, app: { id: manifest.id, name: manifest.name }, shortcuts: manifest.shortcuts || [], brand: brand(), boothDir: boothDir(), booth: located ? { exe: located.exe } : null });
       if (req.method === 'POST' && p === '/settings') {
         try {
           const r = saveSettings(appDir, manifest, cfg, await readBody(req));
@@ -207,7 +228,7 @@ export async function createAppServer({ appDir, mock } = {}) {
     const mod = await import(pathToFileURL(appServer).href);
     await mod.default?.({
       cfg: () => cfg, client, watch, state: watch.state, covers, log, manifest,
-      appDir, dataDir: process.env.QBK_CONFIG_DIR || appDir, // where to keep the app's own files (next to the exe when packaged)
+      appDir, dataDir: process.env.QBK_CONFIG_DIR || appDir, boothDir, brand, // where to keep the app's own files (next to the exe when packaged)
       startWithTemplate,
       route: (method, p, handler) => extraRoutes.push({ method, path: p, handler }),
     });
@@ -218,13 +239,15 @@ export async function createAppServer({ appDir, mock } = {}) {
     get cfg() { return cfg; },
     setHooks(h) { hooks = { ...hooks, ...h }; },
     toggleHidden() { state.hidden = !state.hidden; updateMode(); },
+    boothPid: () => located?.pid || null, // the shell raises this process's event window
+    brand,
     statusText,
     async start() {
       const server = http.createServer((req, res) => route(req, res).catch(err => { console.error(err); try { sendJson(res, 500, { ok: false, error: { code: 'server', message: err.message } }); } catch { } }));
       try { await listenRetry(server, cfg.port); }
       catch (err) { throw new Error(err.code === 'EADDRINUSE' ? `Port ${cfg.port} is in use: ${manifest.name} is probably already running.` : err.message); }
       listening.push(server);
-      log(`${manifest.name}: http://127.0.0.1:${cfg.port}/  (${MOCK ? 'MOCK booth' : `Q-Booth ${conn.host}:${conn.port}`})`);
+      log(`${manifest.name}: http://127.0.0.1:${cfg.port}/  (${MOCK ? 'MOCK booth' : `booth app ${conn.host}:${conn.port}`})`);
       watch.start();
       return { port: cfg.port, cfg };
     },

@@ -1,8 +1,8 @@
-# Panduan QBoothKit
+# Panduan App Kit
 
 Bahasa: [English](GUIDE.md) · **Bahasa Indonesia** · [中文](GUIDE.zh.md)
 
-QBoothKit adalah dasar untuk app yang bekerja **bersama** event Q-Booth yang sedang berjalan lewat
+App Kit adalah dasar untuk app yang bekerja **bersama** event Q-Booth yang sedang berjalan lewat
 Local API Q-Booth: roda yang memilih tema, game sebelum foto, host bersuara, layar di monitor
 kedua, penghitung, antrean printer, apa saja. Kit ini mengerjakan semua "pipa" yang dibutuhkan
 setiap app seperti itu, jadi sebuah app cukup berisi idenya saja:
@@ -63,10 +63,25 @@ tekan **S** (atau ikon tray) → Pengaturan → Q-Booth: port + password → **T
 
 ---
 
+### Brand: QBooth, BleepShare, XBooth
+
+Aplikasi booth hadir dalam tiga build brand dari program yang sama: **QBooth.exe** (melapor "QBooth"),
+**BleepShare.exe** ("BleepShareAI") dan **XBooth.exe** ("XBooth"), masing-masing dengan folder instal
+sendiri (bawaannya C:\QBoothAIV5, C:\BleepShareV5, C:\XBoothV5). Local API-nya sama. Jadi:
+
+- **Jangan pernah menulis nama brand di tampilan app.** Tulis `{booth}` di teks Anda: `kit.t()`
+  mengisinya dengan nama aplikasi booth yang tersambung (`status.app.name`, "QBooth" ditampilkan
+  "Q-Booth"), atau pengaturan **Nama brand** dari operator, atau sebelum pernah tersambung kata netral
+  ("the booth app" / "aplikasi booth" / "拍照亭应用"). `kit.brand` dan `booth.state.brand` menyimpannya.
+- Kit menemukan aplikasi booth lewat **proses yang mendengarkan port Local API** (`core/locate.js`):
+  pid-nya (untuk menaikkan jendela event-nya) dan folder-nya (cover). Tidak ada nama exe atau folder
+  yang ditebak; folder yang umum hanya cadangan. `Pengaturan → Folder aplikasi booth` menimpanya.
+- Tes brand lain dengan mock: `"mockBrand": "XBooth"` (atau `BleepShareAI`) di config.json.
+
 ## 3. Struktur folder
 
 ```
-QBoothKit/
+App Kit/
   core/          Node modules (no dependencies)
     qbooth.js      Local API client: createClient({ host, port, password })
     watch.js       status polling -> events (page, phase, session, event, templates, busy, online)

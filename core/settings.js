@@ -13,14 +13,15 @@ import path from 'node:path';
 const L = (en, id, zh) => ({ en, id, zh });
 
 export const KIT_FIELDS = [
-  { key: 'qbooth.host', type: 'string', default: '127.0.0.1', tab: 'booth', label: L('Q-Booth address', 'Alamat QBooth', 'QBooth 地址'), hint: L('127.0.0.1 = this PC', '127.0.0.1 = PC ini', '127.0.0.1 = 本机') },
+  { key: 'qbooth.host', type: 'string', default: '127.0.0.1', tab: 'booth', label: L('Address', 'Alamat', '地址'), hint: L('127.0.0.1 = this PC', '127.0.0.1 = PC ini', '127.0.0.1 = 本机') },
   { key: 'qbooth.port', type: 'int', default: 8730, min: 1, max: 65535, tab: 'booth', label: L('Local API port', 'Port Local API', 'Local API 端口') },
   { key: 'qbooth.password', type: 'secret', default: '', tab: 'booth', label: L('Local API password', 'Password Local API', 'Local API 密码') },
-  { key: 'qboothDir', type: 'string', default: 'C:\\QBoothPro', tab: 'booth', label: L('Q-Booth folder', 'Folder Q-Booth', 'Q-Booth 文件夹'), hint: L('Template covers are read from here (read only)', 'Cover template dibaca dari sini (hanya dibaca)', '从这里读取模板封面（只读）') },
-  { key: 'mock', type: 'bool', default: false, tab: 'booth', restart: true, label: L('Test mode (fake Q-Booth)', 'Mode uji (Q-Booth tiruan)', '测试模式（模拟 Q-Booth）') },
-  { key: 'mockEvent', type: 'string', default: '', tab: 'booth', restart: true, label: L('Test mode: borrow an event', 'Mode uji: pinjam event', '测试模式：借用活动'), hint: L('An event id from <Q-Booth folder>\\events: the fake booth uses its templates and covers', 'Id event dari <folder Q-Booth>\\events: Q-Booth tiruan memakai template dan covernya', '<Q-Booth 文件夹>\\events 中的活动 id：模拟器使用它的模板和封面') },
+  { key: 'qboothDir', type: 'string', default: '', tab: 'booth', label: L('Booth app folder', 'Folder aplikasi booth', '拍照亭应用文件夹'), hint: L('Empty = found automatically (the QBooth.exe, BleepShare.exe or XBooth.exe in use). Template covers are read from here (read only).', 'Kosong = dicari otomatis (QBooth.exe, BleepShare.exe atau XBooth.exe yang sedang dipakai). Cover template dibaca dari sini (hanya dibaca).', '留空 = 自动查找（正在使用的 QBooth.exe、BleepShare.exe 或 XBooth.exe）。从这里读取模板封面（只读）。') },
+  { key: 'brandName', type: 'string', default: '', tab: 'booth', label: L('Brand name', 'Nama brand', '品牌名称'), hint: L('Empty = the name the booth app reports (Q-Booth, BleepShareAI, XBooth). Shown to guests and in these settings.', 'Kosong = nama dari aplikasi booth (Q-Booth, BleepShareAI, XBooth). Tampil ke tamu dan di pengaturan ini.', '留空 = 拍照亭应用报告的名称（Q-Booth、BleepShareAI、XBooth）。显示给客人和本设置。') },
+  { key: 'mock', type: 'bool', default: false, tab: 'booth', restart: true, label: L('Test mode (fake booth app)', 'Mode uji (aplikasi booth tiruan)', '测试模式（模拟拍照亭应用）') },
+  { key: 'mockEvent', type: 'string', default: '', tab: 'booth', restart: true, label: L('Test mode: borrow an event', 'Mode uji: pinjam event', '测试模式：借用活动'), hint: L('An event id from <booth app folder>\\events: the fake booth uses its templates and covers', 'Id event dari <folder aplikasi booth>\\events: booth tiruan memakai template dan covernya', '<拍照亭应用文件夹>\\events 中的活动 id：模拟器使用它的模板和封面') },
   { key: 'language', type: 'enum', default: 'en', tab: 'app', public: true, label: L('Language', 'Bahasa', '语言'), options: [['en', 'English'], ['id', 'Bahasa Indonesia'], ['zh', '中文']] },
-  { key: 'overlay', type: 'bool', default: true, tab: 'screen', restart: true, public: true, label: L('Overlay on top of Q-Booth', 'Tampil di atas Q-Booth', '显示在 Q-Booth 上方'), hint: L('Shows only on the Q-Booth pages the app is made for. Off = a normal full-screen window (e.g. a second screen). Restarts the app.', 'Hanya muncul di page Q-Booth yang ditentukan app. Mati = jendela layar penuh biasa (mis. layar kedua). App dimulai ulang.', '只在应用指定的 Q-Booth 页面显示。关闭 = 普通全屏窗口（如第二屏）。会重启应用。') },
+  { key: 'overlay', type: 'bool', default: true, tab: 'screen', restart: true, public: true, label: L('Overlay on top of {booth}', 'Tampil di atas {booth}', '显示在{booth}上方'), hint: L('Shows only on the {booth} pages the app is made for. Off = a normal full-screen window (e.g. a second screen). Restarts the app.', 'Hanya muncul di page {booth} yang ditentukan app. Mati = jendela layar penuh biasa (mis. layar kedua). App dimulai ulang.', '只在应用指定的{booth}页面显示。关闭 = 普通全屏窗口（如第二屏）。会重启应用。') },
   { key: 'display', type: 'display', default: 0, tab: 'screen', restart: true, label: L('Screen', 'Layar', '屏幕') },
   { key: 'menuButton', type: 'bool', default: false, tab: 'screen', label: L('Menu button always on top', 'Tombol menu selalu di atas', '菜单按钮始终置顶'), hint: L('A small ☰ button above everything, also while the app is hidden: a tap opens these settings (the PIN first, when set). Guests can see it too.', 'Tombol ☰ kecil di atas semua jendela, juga saat app tersembunyi: sentuh untuk membuka pengaturan ini (dengan PIN kalau diisi). Tamu juga bisa melihatnya.', '一个始终在最上层的小 ☰ 按钮，应用隐藏时也显示：点一下打开设置（如设置了 PIN 需先输入）。客人也看得到。') },
   { key: 'menuCorner', type: 'enum', default: 'top-right', tab: 'screen', label: L('Menu button corner', 'Pojok tombol menu', '菜单按钮位置'),
@@ -29,7 +30,7 @@ export const KIT_FIELDS = [
 ];
 
 // Not on the settings screen, but in config.json.
-export const HIDDEN_DEFAULTS = { pollMs: 400 };
+export const HIDDEN_DEFAULTS = { pollMs: 400, mockBrand: 'QBooth' }; // mockBrand: the product name the fake booth reports (QBooth, BleepShareAI, XBooth)
 
 const get = (o, k) => k.split('.').reduce((a, p) => a?.[p], o);
 const set = (o, k, v) => { const ps = k.split('.'); const last = ps.pop(); let a = o; for (const p of ps) a = a[p] ??= {}; a[last] = v; };

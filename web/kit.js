@@ -11,15 +11,18 @@
 // while Q-Booth is not reachable or runs no event (startKit({ waiting: false }) to draw your own),
 // and wires the operator's ways into the settings (hold the top-left corner 3 s, the S key).
 import { booth, startPolling } from './qbooth.js';
-import { initSettings } from './settings-ui.js';
+import { initSettings, fillBooth, setBoothName } from './settings-ui.js';
 import { fit, place, contain } from './layout.js';
 export { booth, fit, place, contain };
 
 const KIT_TEXT = {
-  en: { waiting: 'Waiting for Q-Booth…', offline: 'Q-Booth is not answering. Is it running, with its Local API on (Settings → Advanced)?', unauthorized: 'Wrong Local API password: set it in Settings', noEvent: 'Run an event in Q-Booth to start', settings: '⚙ Settings' },
-  id: { waiting: 'Menunggu Q-Booth…', offline: 'Q-Booth belum menjawab. Sudah jalan, dan Local API-nya aktif (Settings → Advanced)?', unauthorized: 'Password Local API salah: isi di Pengaturan', noEvent: 'Jalankan event di Q-Booth untuk mulai', settings: '⚙ Pengaturan' },
-  zh: { waiting: '正在等待 Q-Booth…', offline: 'Q-Booth 没有响应。它在运行吗？Local API 打开了吗（Settings → Advanced）？', unauthorized: 'Local API 密码错误：请在设置中填写', noEvent: '请在 Q-Booth 中运行活动', settings: '⚙ 设置' },
+  en: { waiting: 'Waiting for {booth}…', offline: '{booth} is not answering. Is it running, with its Local API on (Settings → Advanced)?', unauthorized: 'Wrong Local API password: set it in Settings', noEvent: 'Run an event in {booth} to start', settings: '⚙ Settings' },
+  id: { waiting: 'Menunggu {booth}…', offline: '{booth} belum menjawab. Sudah jalan, dan Local API-nya aktif (Settings → Advanced)?', unauthorized: 'Password Local API salah: isi di Pengaturan', noEvent: 'Jalankan event di {booth} untuk mulai', settings: '⚙ Pengaturan' },
+  zh: { waiting: '正在等待{booth}…', offline: '{booth}没有响应。它在运行吗？Local API 打开了吗（Settings → Advanced）？', unauthorized: 'Local API 密码错误：请在设置中填写', noEvent: '请在{booth}中运行活动', settings: '⚙ 设置' },
 };
+
+let currentBrand = null;
+function setBrand(b) { if (b && b !== currentBrand) { currentBrand = b; setBoothName(b); } }
 
 export async function startKit({ texts = {}, waiting = true, pollMs = 300 } = {}) {
   if (!document.querySelector('link[data-qbk]')) {
@@ -30,9 +33,10 @@ export async function startKit({ texts = {}, waiting = true, pollMs = 300 } = {}
   const cfg = await (await fetch('/config.json')).json();
   const lang = ['en', 'id', 'zh'].includes(cfg.language) ? cfg.language : 'en';
   document.documentElement.lang = lang;
+  // texts: {name} from vars; {booth} = the booth app's brand (kit.brand), or a neutral word
   const t = (key, vars = {}) => {
     const s = texts[lang]?.[key] ?? texts.en?.[key] ?? key;
-    return typeof s === 'string' ? s.replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m) : s;
+    return typeof s === 'string' ? fillBooth(s.replace(/\{(\w+)\}/g, (m, k) => k === 'booth' ? m : (vars[k] ?? m)), lang) : s;
   };
 
   const settings = initSettings({ lang, locked: cfg.settingsLocked });
@@ -64,15 +68,18 @@ export async function startKit({ texts = {}, waiting = true, pollMs = 300 } = {}
     box.querySelector('button').onclick = () => settings.open();
     document.body.append(box);
     booth.on('state', s => {
+      setBrand(s.brand);
       const why = !s.online ? (s.error === 'unauthorized' ? k.unauthorized : k.offline) : !s.event ? k.noEvent : null;
       box.hidden = !why;
-      if (why) { box.querySelector('.qbk-wait-icon').textContent = s.online ? '🎪' : '🔌'; box.querySelector('h2').textContent = k.waiting; box.querySelector('p').textContent = why; }
+      if (why) { box.querySelector('.qbk-wait-icon').textContent = s.online ? '🎪' : '🔌'; box.querySelector('h2').textContent = fillBooth(k.waiting, lang); box.querySelector('p').textContent = fillBooth(why, lang); }
     });
   }
 
+  booth.on('state', s => setBrand(s.brand));
   startPolling(pollMs);
   return {
     cfg, lang, t, booth, settings, fit, place, contain,
+    get brand() { return currentBrand; },   // the booth app's name (Q-Booth, BleepShareAI, XBooth) or null
     get shown() { return shown; },
     onShown(fn) { shownFns.push(fn); },
   };

@@ -1,7 +1,7 @@
 {
-  "name": "qboothkit",
+  "name": "app-kit",
   "version": "0.1.0",
-  "description": "QBoothKit: build apps that drive Q-Booth through its Local API (server, desktop shell, browser modules, tools, docs)",
+  "description": "App Kit: build apps that drive the booth app (QBooth / BleepShare / XBooth) through its Local API (server, desktop shell, browser modules, tools, docs)",
   "private": true,
   "type": "module",
   "scripts": {

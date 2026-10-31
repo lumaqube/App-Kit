@@ -1,9 +1,11 @@
-// Brings a window to the front on Windows: Q-Booth's event (kiosk) window when the wheel hides,
+// Brings a window to the front on Windows: the booth app's event (kiosk) window when the app hides,
 // our own window when it comes back. Electron cannot raise another app's window, so one
 // PowerShell process stays open with a few user32 calls compiled once (a new PowerShell per call
 // would take a second or more); each request is one line on its stdin:
-//   qbooth        -> the event window of QBooth.exe (its biggest visible window that is not the
-//                    main "QBooth - Version ..." window), restored, foreground, top
+//   booth <pid>   -> the event window of the booth app (QBooth.exe, BleepShare.exe or XBooth.exe):
+//                    its biggest visible window that is not the main "<Brand> - Version ..." window,
+//                    restored, foreground, top. pid = the process on the Local API port (core/locate.js);
+//                    0 = look for those three exe names
 //   self <hwnd>   -> that window (ours), foreground, top
 // Windows only lets the foreground app hand the foreground over: the call joins the input of
 // the current foreground thread first (AttachThreadInput), the usual way around that.
@@ -48,15 +50,18 @@ public static class Front {
     return GetForegroundWindow() == h ? "ok" : "refused";
   }
 
-  public static string QBooth() {
+  public static string Booth(int knownPid) {
     IntPtr best = IntPtr.Zero; long area = 0;
-    foreach (var p in Process.GetProcessesByName("QBooth")) {
-      uint want = (uint)p.Id;
+    var pids = new System.Collections.Generic.List<int>();
+    if (knownPid > 0) pids.Add(knownPid);
+    else foreach (var n in new[] { "QBooth", "BleepShare", "XBooth" }) foreach (var p in Process.GetProcessesByName(n)) pids.Add(p.Id);
+    foreach (var id in pids) {
+      uint want = (uint)id;
       EnumWindows((h, l) => {
         uint pid; GetWindowThreadProcessId(h, out pid);
         if (pid != want || !IsWindowVisible(h)) return true;
         var s = new StringBuilder(256); GetWindowText(h, s, 256);
-        if (s.ToString().StartsWith("QBooth - Version")) return true; // the editor / main window
+        if (s.ToString().Contains(" - Version")) return true; // the editor / main window ("QBooth - Version : 5.9.3.0")
         RECT r; GetWindowRect(h, out r);
         long a = (long)(r.R - r.L) * (r.B - r.T);
         if (a > area) { area = a; best = h; }
@@ -72,7 +77,7 @@ while ($true) {
   $line = [Console]::In.ReadLine()
   if ($line -eq $null) { break }
   $p = $line.Trim() -split ' '
-  if ($p[0] -eq 'qbooth') { "qbooth " + [Front]::QBooth() }
+  if ($p[0] -eq 'booth') { "booth " + [Front]::Booth([int]$p[1]) }
   elseif ($p[0] -eq 'self') { "self " + [Front]::Raise([IntPtr][long]$p[1]) }
 }
 `;
@@ -81,7 +86,7 @@ let ps = null;
 function helper() {
   if (ps && ps.exitCode === null) return ps;
   // a script file (stdin stays free for the requests)
-  const file = path.join(os.tmpdir(), 'qboothkit-front.ps1');
+  const file = path.join(os.tmpdir(), 'appkit-front.ps1');
   fs.writeFileSync(file, SCRIPT);
   ps = spawn('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
   ps.stdout.on('data', d => { for (const l of String(d).split(/\r?\n/)) if (l.trim()) console.log('front: ' + l.trim()); });
@@ -90,7 +95,7 @@ function helper() {
 }
 
 export function startFront() { if (process.platform === 'win32') helper(); }
-export function raiseQBooth() { if (process.platform === 'win32') helper().stdin.write('qbooth\n'); }
+export function raiseBooth(pid = 0) { if (process.platform === 'win32') helper().stdin.write(`booth ${+pid || 0}\n`); }
 export function raiseSelf(win) {
   if (process.platform !== 'win32' || !win || win.isDestroyed()) return;
   const h = win.getNativeWindowHandle();
