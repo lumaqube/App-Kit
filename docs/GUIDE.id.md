@@ -337,7 +337,7 @@ milik aplikasi booth sendiri **di PC yang sama**, hanya dibaca:
 2. kalau tidak ada, file template `templates[].path` (`.qso` / `.qsc`, JSON) → `event_info.preview_image[0].mBase64`,
 3. kalau tidak ada juga, tidak ada apa-apa: gambar placeholder (huruf pertama, sebuah warna).
 
-`qboothDir` secara default `C:\QBoothPro` (Pengaturan → Booth). Cover kategori: `categories[].cover`;
+`qboothDir` kosong secara default: aplikasi booth di port Local API dicari dan foldernya dipakai (Pengaturan → Booth). Cover kategori: `categories[].cover`;
 cover event-nya sendiri: `coverImage`.
 
 - Page: `booth.coverUrl(id)`. Server: `kit.covers.coverOf(dir, eventId, templateId)` → `{ type, data, from }`.
@@ -376,7 +376,7 @@ refused | none`.
 
 `--mock` (atau Pengaturan → Booth → Mode uji) menjalankan `core/mock.js` di port 8749: API,
 page, fase, dan error yang sama. Isi **Mode uji: pinjam event** dengan id event dari
-`C:\QBoothPro\events` (daftarnya: `node tools/covers.mjs`) dan mock memakai template-nya, jadi
+`<qboothDir>\events` (daftarnya: `node tools/covers.mjs`) dan mock memakai template-nya, jadi
 cover-nya asli. `mock.auto` di app.json: sesi berjalan sendiri, atau menunggu perintah Anda.
 
 Panggilan khusus mock (untuk tes): `POST /api/v1/mock/dialog {on}` (dialog aplikasi booth), `POST

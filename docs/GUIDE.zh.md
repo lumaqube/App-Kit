@@ -332,7 +332,7 @@ Local API 只返回模板的 id 和名称，不返回图片。套件从**同一�
 2. 否则读取模板文件 `templates[].path`（`.qso` / `.qsc`，JSON）→ `event_info.preview_image[0].mBase64`，
 3. 都没有：绘制占位图（首字母、一种颜色）。
 
-`qboothDir` 默认为 `C:\QBoothPro`（设置 → 拍照亭）。分类封面：`categories[].cover`；
+`qboothDir` 默认留空：自动找到占用 Local API 端口的拍照亭应用并使用其文件夹（设置 → 拍照亭）。分类封面：`categories[].cover`；
 活动本身的封面：`coverImage`。
 
 - 页面：`booth.coverUrl(id)`。服务器：`kit.covers.coverOf(dir, eventId, templateId)` → `{ type, data, from }`。
@@ -369,7 +369,7 @@ refused | none`。
 ### 10.1 模拟拍照亭应用（mock）
 
 `--mock`（或 设置 → 拍照亭 → 测试模式）会在 8749 端口启动 `core/mock.js`：API、页面、阶段和错误都相同。
-把 **测试模式：借用活动** 设为 `C:\QBoothPro\events` 中的某个活动 id（列表：`node tools/covers.mjs`），
+把 **测试模式：借用活动** 设为 `<qboothDir>\events` 中的某个活动 id（列表：`node tools/covers.mjs`），
 模拟器就会使用它的模板，封面也就是真实的。app.json 中的 `mock.auto`：拍摄流程自动进行，或等待你的命令。
 
 仅限模拟器的调用（用于测试）：`POST /api/v1/mock/dialog {on}`（一个拍照亭应用的对话框），`POST

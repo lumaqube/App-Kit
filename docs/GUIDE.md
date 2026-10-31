@@ -337,7 +337,7 @@ event folder **on the same PC**, read only:
 2. else the template file `templates[].path` (`.qso` / `.qsc`, JSON) → `event_info.preview_image[0].mBase64`,
 3. else nothing: draw a placeholder (first letter, a colour).
 
-`qboothDir` is `C:\QBoothPro` by default (Settings → Booth). Category covers: `categories[].cover`;
+`qboothDir` is empty by default: the booth app on the Local API port is found and its folder used (Settings → Booth). Category covers: `categories[].cover`;
 the event's own cover: `coverImage`.
 
 - Page: `booth.coverUrl(id)`. Server: `kit.covers.coverOf(dir, eventId, templateId)` → `{ type, data, from }`.
@@ -376,7 +376,7 @@ refused | none`.
 
 `--mock` (or Settings → Booth → Test mode) starts `core/mock.js` on port 8749: the same API,
 pages, phases and errors. Set **Test mode: borrow an event** to an event id from
-`C:\QBoothPro\events` (list: `node tools/covers.mjs`) and the mock uses its templates, so the
+`<qboothDir>\events` (list: `node tools/covers.mjs`) and the mock uses its templates, so the
 covers are real. `mock.auto` in app.json: the session plays by itself, or waits for your commands.
 
 Mock-only calls (for tests): `POST /api/v1/mock/dialog {on}` (a booth app dialog), `POST
