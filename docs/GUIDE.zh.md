@@ -139,6 +139,7 @@ apps/<id>/
 | `window.background` | 页面绘制完成前的窗口颜色 |
 | `mock.auto` | 选定模板后，模拟器自动完整走完一次拍摄流程（true），或等待你的 capture / process 命令（false） |
 | `settings` | 你自己的设置字段（第 7 节） |
+| `shortcuts` | 你的应用自己的快捷键，显示在 设置 → 快捷键 中：`[{ "keys": "Space", "label": { "en": "Spin", "id": "Putar", "zh": "转" } }]` |
 
 ### 4.2 页面
 
@@ -299,6 +300,15 @@ Q-Booth 文件夹、测试模式），**你的应用**（语言 + 你的字段�
 
 ---
 
+### 菜单按钮与快捷键页
+
+- **菜单按钮始终置顶**（设置 → 屏幕，默认关闭；位置：右上 / 左上 / 右下 / 左下）：一个独立的小 ☰
+  窗口（`shell/fab.js`，页面 `web/fab.html`），在所有窗口之上，应用隐藏时也显示。点击 →
+  `POST /app/menu` → 设置（先输入 PIN）。客人也看得到：操作员需要时再打开，并用 PIN 保护设置。
+  无需重启即生效。
+- **快捷键页**：进入应用的所有方式（上面的按键、托盘图标、左上角、菜单按钮、再次打开 exe 等），
+  以所选语言显示，然后是 `app.json` → `shortcuts` 中应用自己的按键。
+
 ## 8. 封面
 
 Local API 只返回模板的 id 和名称，不返回图片。套件从**同一台电脑上** Q-Booth 自己的活动文件夹中读取封面，
@@ -431,6 +441,7 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `POST /booth/start-with-template {id}` | 从任意页面用该模板开始一次拍摄流程 |
 | `POST /app/hold {ms}` | 让覆盖层保持显示（≤ 20 s） |
 | `POST /app/peek {on}` | 设置已打开：显示窗口 |
+| `POST /app/menu` | 点击了始终置顶的菜单按钮：打开设置 |
 | `GET/POST /settings`, `POST /settings/unlock {pin}`, `/settings/test`, `/app/hide`, `/app/quit` | 操作员使用（PIN 码请求头 `x-settings-pin`） |
 | 你的 `kit.route(...)` | 优先匹配 |
 

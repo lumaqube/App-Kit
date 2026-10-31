@@ -6,7 +6,8 @@
 //   full   the app, full screen; in overlay mode on top of Q-Booth's event screen
 //   setup  not connected to Q-Booth yet: a normal window in the middle saying why (with Settings)
 //   hidden Q-Booth's own pages, no event, or a Q-Booth dialog: Q-Booth's event window is raised
-// A tray icon has Settings / Hide-show / Quit; opening the exe again opens Settings.
+// A tray icon has Settings / Hide-show / Quit; opening the exe again opens Settings. An optional
+// always-on-top menu button (Settings -> Screen, shell/fab.js) opens them too.
 // Secret keys, from anywhere: Ctrl+Alt+Shift+S settings · Ctrl+Alt+Shift+H hide / show · Ctrl+Alt+Shift+Q quit.
 // With the window focused: F12 developer tools, Ctrl+Q quit.
 import { app, BrowserWindow, screen, dialog, globalShortcut, Tray, Menu, nativeImage } from 'electron';
@@ -15,6 +16,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startFront, raiseQBooth, raiseSelf, stopFront } from './winfront.js';
+import { createFab } from './fab.js';
 
 const KIT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const APP_DIR = process.env.QBK_APP ? path.resolve(process.env.QBK_APP) : path.join(KIT, 'app');
@@ -58,7 +60,7 @@ if (!(await getLock())) {
   app.quit(); // already running: that copy opens its settings (second-instance)
 } else {
   app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required'); // sound without a first tap
-  let win = null, tray = null, server = null;
+  let win = null, tray = null, server = null, fab = null;
 
   app.whenReady().then(async () => {
     const primary = screen.getPrimaryDisplay();
@@ -78,6 +80,7 @@ if (!(await getLock())) {
         if (!win.isVisible()) win.show();
         win.focus();
         if (overlay) raiseSelf(win);
+        fab?.raise();
       } else {
         win.setAlwaysOnTop(false);
         const w = Math.min(1100, Math.round(box.width * 0.7)), h = Math.min(720, Math.round(box.height * 0.75));
@@ -93,6 +96,8 @@ if (!(await getLock())) {
         restart, quit: () => app.quit(), desktop: true,
         displays: screen.getAllDisplays().map((d, i) => ({ index: i, label: `${i + 1}: ${d.size.width}×${d.size.height}${d.id === primary.id ? ' (main)' : ''}` })),
         visible: (m, text) => { mode = m; console.log(`window: ${m} (${text})`); applyMode(); tray?.setToolTip(`${manifest.name} · ${text}`); },
+        menu: () => openSettings(),
+        configChanged: c => fab?.update({ on: !!c.menuButton, corner: c.menuCorner }),
       });
       await server.start();
     } catch (err) {
@@ -118,9 +123,12 @@ if (!(await getLock())) {
         if (b.x !== box.x || b.y !== box.y || b.width !== box.width || b.height !== box.height) win.setBounds(box);
         win.setAlwaysOnTop(true, 'screen-saver');
         win.moveTop();
+        fab?.raise();
       }, 1500);
       startFront();
     }
+    fab = createFab({ url: `http://127.0.0.1:${cfg.port}/kit/fab.html` });
+    fab.update({ on: !!cfg.menuButton, corner: cfg.menuCorner, box });
     console.log(`screen: ${box.width}x${box.height} at ${box.x},${box.y}, ${overlay ? 'overlay' : 'window'} mode`);
 
     tray = new Tray(nativeImage.createFromPath(iconFile).resize({ width: 16, height: 16 }));
@@ -160,6 +168,7 @@ if (!(await getLock())) {
     globalShortcut.unregisterAll();
     tray?.destroy();
     stopFront();
+    fab?.destroy();
     server?.stop();
     app.releaseSingleInstanceLock();
     const helpers = app.getAppMetrics().map(m => m.pid).filter(pid => pid !== process.pid);

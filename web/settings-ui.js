@@ -9,21 +9,38 @@ const T = {
     boothHint: 'Q-Booth: Settings → Advanced → Local API (Expert mode): switch it on, then copy its port and password here.',
     hide: 'Hide / show', clearPin: 'Remove the PIN', save: 'Save', cancel: 'Cancel', quit: 'Close the app', saving: 'Saving…',
     restarting: 'Saved, restarting…', restartManual: 'Saved. Takes effect after the app restarts.', file: 'Saved in', enterPin: 'Enter the settings PIN', wrongPin: 'Wrong PIN',
-    keys: 'Ctrl+Alt+Shift+S settings · Ctrl+Alt+Shift+H hide / show · Ctrl+Alt+Shift+Q quit' },
+    keysTab: 'Shortcuts', keysHint: 'Ways to reach the app while it runs on the booth:', appKeys: 'This app' },
   id: { title: 'Pengaturan', booth: 'Q-Booth', app: 'App', screen: 'Layar', security: 'Keamanan', kept: 'tersimpan (kosongkan = tetap)',
     test: 'Tes koneksi', testing: 'Mengetes…', ok: '✓ Terhubung', noEvent: 'belum ada event berjalan',
     boothHint: 'Di Q-Booth: Settings → Advanced → Local API (mode Expert): nyalakan, lalu salin port dan password-nya ke sini.',
     hide: 'Sembunyikan / tampilkan', clearPin: 'Hapus PIN', save: 'Simpan', cancel: 'Batal', quit: 'Tutup app', saving: 'Menyimpan…',
     restarting: 'Tersimpan, memulai ulang…', restartManual: 'Tersimpan. Berlaku setelah app dijalankan ulang.', file: 'Disimpan di', enterPin: 'Masukkan PIN pengaturan', wrongPin: 'PIN salah',
-    keys: 'Ctrl+Alt+Shift+S pengaturan · Ctrl+Alt+Shift+H sembunyikan / tampilkan · Ctrl+Alt+Shift+Q keluar' },
+    keysTab: 'Pintasan', keysHint: 'Cara menjangkau app saat berjalan di booth:', appKeys: 'App ini' },
   zh: { title: '设置', booth: 'Q-Booth', app: '应用', screen: '屏幕', security: '安全', kept: '已保存（留空则不变）',
     test: '测试连接', testing: '测试中…', ok: '✓ 已连接', noEvent: '没有正在运行的活动',
     boothHint: '在 Q-Booth 中：Settings → Advanced → Local API（Expert 模式）：打开，然后把端口和密码复制到这里。',
     hide: '隐藏 / 显示', clearPin: '删除 PIN', save: '保存', cancel: '取消', quit: '关闭应用', saving: '保存中…',
     restarting: '已保存，正在重启…', restartManual: '已保存。重启应用后生效。', file: '保存于', enterPin: '请输入设置 PIN 码', wrongPin: 'PIN 码错误',
-    keys: 'Ctrl+Alt+Shift+S 设置 · Ctrl+Alt+Shift+H 隐藏 / 显示 · Ctrl+Alt+Shift+Q 退出' },
+    keysTab: '快捷键', keysHint: '应用在拍照亭运行时的操作方式：', appKeys: '本应用' },
 };
-const TABS = ['booth', 'app', 'screen', 'security'];
+const TABS = ['booth', 'app', 'screen', 'security', 'keys'];
+
+// The "Shortcuts" tab: how the operator reaches everything. [keys, { en, id, zh }]
+const L = (en, id, zh) => ({ en, id, zh });
+const KEYS = [
+  ['Ctrl+Alt+Shift+S', L('Open these settings, from anywhere (also while Q-Booth has the screen)', 'Buka pengaturan ini dari mana saja (juga saat Q-Booth yang tampil)', '在任何时候打开设置（Q-Booth 在前台时也可以）')],
+  ['Ctrl+Alt+Shift+H', L('Hide / show the app (it stays hidden until pressed again)', 'Sembunyikan / tampilkan app (tetap tersembunyi sampai ditekan lagi)', '隐藏 / 显示应用（再按一次才恢复）')],
+  ['Ctrl+Alt+Shift+Q', L('Quit the app', 'Keluar dari app', '退出应用')],
+  ['☰', L('The menu button (Screen tab, "Menu button always on top"): settings', 'Tombol menu (tab Layar, "Tombol menu selalu di atas"): pengaturan', '菜单按钮（屏幕页，"菜单按钮始终置顶"）：设置')],
+  [L('Tray icon', 'Ikon tray', '托盘图标'), L('By the clock: a click opens the settings; right-click: Settings / Hide-show / Quit', 'Dekat jam: klik untuk pengaturan; klik kanan: Settings / Hide-show / Quit', '时钟旁：单击打开设置；右键：Settings / Hide-show / Quit')],
+  [L('Hold the top-left corner 3 s', 'Tahan pojok kiri atas 3 dtk', '按住左上角 3 秒'), L('Settings, on a touch screen', 'Pengaturan, di layar sentuh', '在触摸屏上打开设置')],
+  [L('Open the exe again', 'Buka exe-nya lagi', '再次打开 exe'), L('Opens the settings of the copy already running', 'Membuka pengaturan app yang sudah berjalan', '打开已在运行的应用的设置')],
+  [L('Settings button', 'Tombol Pengaturan', '设置按钮'), L('On the "Waiting for Q-Booth…" screen', 'Di layar "Menunggu Q-Booth…"', '在"正在等待 Q-Booth…"画面上')],
+  ['S', L('Settings (the app window focused)', 'Pengaturan (jendela app sedang aktif)', '设置（应用窗口处于焦点时）')],
+  ['Ctrl+Q', L('Quit (the app window focused)', 'Keluar (jendela app sedang aktif)', '退出（应用窗口处于焦点时）')],
+  ['F12', L('Developer tools (the app window focused)', 'Developer tools (jendela app sedang aktif)', '开发者工具（应用窗口处于焦点时）')],
+  ['Enter / Esc', L('In the PIN box: OK / cancel', 'Di kotak PIN: OK / batal', 'PIN 框中：确定 / 取消')],
+];
 
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids.filter(k => k != null)); return e; };
 const pick = (v, lang) => v == null ? '' : typeof v === 'string' ? v : (v[lang] ?? v.en ?? Object.values(v)[0] ?? '');
@@ -116,14 +133,18 @@ export function initSettings({ lang = 'en', locked = false } = {}) {
     // Screen tab: hide / show and the keys
     const hideBtn = el('button', { type: 'button', textContent: t.hide });
     hideBtn.onclick = () => { close(); fetch('/app/hide', { method: 'POST', headers: { 'x-settings-pin': pin } }); };
-    groups.screen.push(el('div', { className: 'set-row' }, el('span'), el('div', { className: 'set-inline' }, hideBtn)), el('small', { className: 'set-note', textContent: t.keys }));
+    groups.screen.push(el('div', { className: 'set-row' }, el('span'), el('div', { className: 'set-inline' }, hideBtn)));
+    // Shortcuts tab: the kit's, then the app's own (app.json "shortcuts": [{ keys, label: { en, id, zh } }])
+    const keyRow = (k, what) => el('div', { className: 'set-row set-key' }, el('kbd', { textContent: pick(k, lang) }), el('span', { textContent: pick(what, lang) }));
+    groups.keys.push(el('small', { className: 'set-note', textContent: t.keysHint }), ...KEYS.map(([k, w]) => keyRow(k, w)));
+    if (s.shortcuts?.length) groups.keys.push(el('h3', { className: 'set-sub', textContent: s.app?.name || t.appKeys }), ...s.shortcuts.map(x => keyRow(x.keys, x.label)));
     // Security tab: remove the PIN
     const clearPin = el('input', { type: 'checkbox' });
     if (s.has.settingsPin) groups.security.push(row(t.clearPin, clearPin));
     const pinRead = read.settingsPin;
     read.settingsPin = () => clearPin.checked ? null : pinRead();
 
-    const tabName = { booth: t.booth, app: s.app?.name || t.app, screen: t.screen, security: t.security };
+    const tabName = { booth: t.booth, app: s.app?.name || t.app, screen: t.screen, security: t.security, keys: t.keysTab };
     const sections = TABS.filter(tab => groups[tab].length).map(tab => el('fieldset', {}, el('legend', { textContent: tabName[tab] }), ...groups[tab]));
     const nav = el('nav', { className: 'set-tabs' });
     const tabBtns = sections.map((fs, i) => { const b = el('button', { type: 'button', textContent: fs.querySelector('legend').textContent }); b.onclick = () => openTab(i); return b; });

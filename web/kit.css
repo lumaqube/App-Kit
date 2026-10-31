@@ -64,3 +64,8 @@
   .set-tabs { flex-direction: row; flex-wrap: wrap; margin-bottom: 12px; overflow: visible; }
   .set-panel .set-tabs button { flex: 1 1 auto; text-align: center; }
 }
+
+/* the Shortcuts tab */
+.set-key { grid-template-columns: 210px 1fr; }
+.set-key kbd { justify-self: start; padding: 4px 10px; border: 1px solid #4a5285; border-bottom-width: 3px; border-radius: 7px; background: #0e1124; color: #ffd23f; font: 600 14px "Segoe UI", system-ui, sans-serif; white-space: nowrap; }
+.set-sub { margin: 16px 0 4px; font-size: 16px; color: #ffd23f; }

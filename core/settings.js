@@ -22,6 +22,9 @@ export const KIT_FIELDS = [
   { key: 'language', type: 'enum', default: 'en', tab: 'app', public: true, label: L('Language', 'Bahasa', '语言'), options: [['en', 'English'], ['id', 'Bahasa Indonesia'], ['zh', '中文']] },
   { key: 'overlay', type: 'bool', default: true, tab: 'screen', restart: true, public: true, label: L('Overlay on top of Q-Booth', 'Tampil di atas Q-Booth', '显示在 Q-Booth 上方'), hint: L('Shows only on the Q-Booth pages the app is made for. Off = a normal full-screen window (e.g. a second screen). Restarts the app.', 'Hanya muncul di page Q-Booth yang ditentukan app. Mati = jendela layar penuh biasa (mis. layar kedua). App dimulai ulang.', '只在应用指定的 Q-Booth 页面显示。关闭 = 普通全屏窗口（如第二屏）。会重启应用。') },
   { key: 'display', type: 'display', default: 0, tab: 'screen', restart: true, label: L('Screen', 'Layar', '屏幕') },
+  { key: 'menuButton', type: 'bool', default: false, tab: 'screen', label: L('Menu button always on top', 'Tombol menu selalu di atas', '菜单按钮始终置顶'), hint: L('A small ☰ button above everything, also while the app is hidden: a tap opens these settings (the PIN first, when set). Guests can see it too.', 'Tombol ☰ kecil di atas semua jendela, juga saat app tersembunyi: sentuh untuk membuka pengaturan ini (dengan PIN kalau diisi). Tamu juga bisa melihatnya.', '一个始终在最上层的小 ☰ 按钮，应用隐藏时也显示：点一下打开设置（如设置了 PIN 需先输入）。客人也看得到。') },
+  { key: 'menuCorner', type: 'enum', default: 'top-right', tab: 'screen', label: L('Menu button corner', 'Pojok tombol menu', '菜单按钮位置'),
+    options: [['top-right', L('Top right', 'Kanan atas', '右上')], ['top-left', L('Top left', 'Kiri atas', '左上')], ['bottom-right', L('Bottom right', 'Kanan bawah', '右下')], ['bottom-left', L('Bottom left', 'Kiri bawah', '左下')]] },
   { key: 'settingsPin', type: 'secret', default: '', tab: 'security', label: L('Settings PIN', 'PIN pengaturan', '设置 PIN 码'), hint: L('Empty = keep (no PIN when none is set)', 'Kosong = tetap (tanpa PIN kalau belum diisi)', '留空 = 不变（未设置则无 PIN）') },
 ];
 

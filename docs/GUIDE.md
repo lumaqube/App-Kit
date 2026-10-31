@@ -141,6 +141,7 @@ apps/<id>/
 | `window.background` | the window colour before the page paints |
 | `mock.auto` | the fake booth plays a whole session by itself after a template is chosen (true), or waits for your capture / process commands (false) |
 | `settings` | your own settings fields (section 7) |
+| `shortcuts` | your app's own keys, listed in Settings → Shortcuts: `[{ "keys": "Space", "label": { "en": "Spin", "id": "Putar", "zh": "转" } }]` |
 
 ### 4.2 The page
 
@@ -301,6 +302,17 @@ Local API password: never commit it, never put it in a package or a screenshot.
 
 ---
 
+### Menu button and the Shortcuts tab
+
+- **Menu button always on top** (Settings → Screen, off by default; corner: top right / top left /
+  bottom right / bottom left): a small ☰ window of its own (`shell/fab.js`, page `web/fab.html`)
+  above everything, also while the app is hidden. A tap → `POST /app/menu` → the settings (PIN
+  first). Guests can see it: turn it on when the operator needs it, protect the settings with a PIN.
+  It applies without a restart.
+- **Shortcuts tab**: every way into the app (the keys above, the tray icon, the corner, the menu
+  button, opening the exe again, …) in the chosen language, then the app's own keys from
+  `app.json` → `shortcuts`.
+
 ## 8. Covers
 
 The Local API returns template ids and names, no images. The kit reads them from Q-Booth's own
@@ -438,6 +450,7 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `POST /booth/start-with-template {id}` | a session with that template from any page |
 | `POST /app/hold {ms}` | keep the overlay up (≤ 20 s) |
 | `POST /app/peek {on}` | settings open: show the window |
+| `POST /app/menu` | the always-on-top menu button was tapped: open the settings |
 | `GET/POST /settings`, `POST /settings/unlock {pin}`, `/settings/test`, `/app/hide`, `/app/quit` | operator (PIN header `x-settings-pin`) |
 | your `kit.route(...)` | checked first |
 

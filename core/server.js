@@ -12,6 +12,7 @@
 //   POST /booth/start-with-template {id}   start a session with that template from wherever Q-Booth is
 //   POST /app/hold {ms}         keep the window up for ms (an animation after the hand-over), max 20 s
 //   POST /app/peek {on}         the settings are open: show the window whatever the page
+//   POST /app/menu              the always-on-top menu button (shell/fab.js) was tapped: open the settings
 //   GET/POST /settings, /settings/unlock, /settings/test, /app/hide, /app/quit   (operator, PIN)
 //
 // An app may add its own server side in <app>/server.js:  export default function (kit) { ... }
@@ -158,6 +159,8 @@ export async function createAppServer({ appDir, mock } = {}) {
       updateMode();
       return sendJson(res, 200, { ok: true });
     }
+    // the always-on-top menu button was tapped (no PIN here: the settings ask for it)
+    if (req.method === 'POST' && p === '/app/menu') { hooks.menu?.(); return sendJson(res, 200, { ok: !!hooks.menu }); }
     if (req.method === 'POST' && p === '/app/peek') {
       const { on } = await readBody(req);
       state.peek = !!on;
@@ -170,11 +173,12 @@ export async function createAppServer({ appDir, mock } = {}) {
     }
     if (p === '/settings' || p.startsWith('/settings/') || p === '/app/hide' || p === '/app/quit') {
       if (!pinOk(req.headers['x-settings-pin'])) return sendJson(res, 403, { ok: false, error: { code: 'pin' } });
-      if (req.method === 'GET' && p === '/settings') return sendJson(res, 200, { ...readSettings(cfg, manifest), file: configFile(appDir), displays: hooks.displays, desktop: hooks.desktop, app: { id: manifest.id, name: manifest.name } });
+      if (req.method === 'GET' && p === '/settings') return sendJson(res, 200, { ...readSettings(cfg, manifest), file: configFile(appDir), displays: hooks.displays, desktop: hooks.desktop, app: { id: manifest.id, name: manifest.name }, shortcuts: manifest.shortcuts || [] });
       if (req.method === 'POST' && p === '/settings') {
         try {
           const r = saveSettings(appDir, manifest, cfg, await readBody(req));
           cfg = loadConfig(appDir, manifest);
+          hooks.configChanged?.(cfg); // the shell applies what it can live (the menu button)
           if (!MOCK) client.set(cfg.qbooth);
           watch.refreshTemplates();
           const restart = r.restart && !!hooks.restart;

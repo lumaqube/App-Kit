@@ -141,6 +141,7 @@ apps/<id>/
 | `window.background` | warna jendela sebelum page selesai digambar |
 | `mock.auto` | booth palsu memainkan seluruh sesi sendiri setelah template dipilih (true), atau menunggu perintah capture / process dari Anda (false) |
 | `settings` | field pengaturan milik Anda sendiri (bagian 7) |
+| `shortcuts` | tombol pintas milik app Anda, ditampilkan di Pengaturan → Pintasan: `[{ "keys": "Space", "label": { "en": "Spin", "id": "Putar", "zh": "转" } }]` |
 
 ### 4.2 Page
 
@@ -301,6 +302,17 @@ password Local API: jangan pernah di-commit, jangan pernah dimasukkan ke paket a
 
 ---
 
+### Tombol menu dan tab Pintasan
+
+- **Tombol menu selalu di atas** (Pengaturan → Layar, bawaannya mati; pojok: kanan atas / kiri atas /
+  kanan bawah / kiri bawah): jendela ☰ kecil tersendiri (`shell/fab.js`, halaman `web/fab.html`)
+  di atas semua jendela, juga saat app tersembunyi. Sentuh → `POST /app/menu` → pengaturan (PIN
+  dulu). Tamu juga bisa melihatnya: nyalakan saat operator membutuhkannya, lindungi pengaturan dengan
+  PIN. Berlaku tanpa restart.
+- **Tab Pintasan**: semua cara masuk ke app (tombol-tombol di atas, ikon tray, pojok layar, tombol
+  menu, membuka exe lagi, …) dalam bahasa yang dipilih, lalu tombol milik app dari
+  `app.json` → `shortcuts`.
+
 ## 8. Cover
 
 Local API mengembalikan id dan nama template, tanpa gambar. Kit membacanya dari folder event
@@ -438,6 +450,7 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `POST /booth/start-with-template {id}` | sesi dengan template itu dari page mana pun |
 | `POST /app/hold {ms}` | pertahankan overlay (≤ 20 dtk) |
 | `POST /app/peek {on}` | pengaturan terbuka: tampilkan jendela |
+| `POST /app/menu` | tombol menu yang selalu di atas disentuh: buka pengaturan |
 | `GET/POST /settings`, `POST /settings/unlock {pin}`, `/settings/test`, `/app/hide`, `/app/quit` | operator (header PIN `x-settings-pin`) |
 | `kit.route(...)` Anda | dicek lebih dulu |
 
