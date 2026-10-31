@@ -1,0 +1,19 @@
+{
+  "name": "qboothkit",
+  "version": "0.1.0",
+  "description": "QBoothKit: build apps that drive Q-Booth through its Local API (server, desktop shell, browser modules, tools, docs)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node tools/serve.mjs",
+    "app": "node tools/run.mjs",
+    "new": "node tools/new-app.mjs",
+    "build": "node tools/build.mjs",
+    "covers": "node tools/covers.mjs",
+    "qb": "node tools/qb.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^45.1.0"
+  }
+}

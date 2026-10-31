@@ -1,0 +1,53 @@
+{
+  "id": "hello",
+  "name": "Hello Booth",
+  "port": 3940,
+  "window": {
+    "mode": "overlay",
+    "showOn": [
+      "welcome"
+    ],
+    "hideOnDialog": true,
+    "background": "#24124a"
+  },
+  "mock": {
+    "auto": true
+  },
+  "settings": [
+    {
+      "key": "headline",
+      "type": "string",
+      "default": "",
+      "label": {
+        "en": "Headline",
+        "id": "Judul",
+        "zh": "标题"
+      },
+      "hint": {
+        "en": "Empty = \"Pick your theme!\" in the chosen language",
+        "id": "Kosong = \"Pilih temamu!\" sesuai bahasa",
+        "zh": "留空 = 所选语言的“选择你的主题！”"
+      }
+    },
+    {
+      "key": "bgmVolume",
+      "type": "range",
+      "default": 50,
+      "label": {
+        "en": "Music volume",
+        "id": "Volume musik",
+        "zh": "音乐音量"
+      }
+    },
+    {
+      "key": "sfxVolume",
+      "type": "range",
+      "default": 80,
+      "label": {
+        "en": "Effects volume",
+        "id": "Volume efek",
+        "zh": "音效音量"
+      }
+    }
+  ]
+}

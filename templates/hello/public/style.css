@@ -1,0 +1,22 @@
+/* Hello Booth. Sizes in var(--u) = 1% of the short screen side (set by kit.fit), so it scales on any screen. */
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  font-family: Fredoka, 'Segoe UI', sans-serif; color: #fff; user-select: none;
+  background: radial-gradient(circle at 20% 10%, #ff5fa2 0%, transparent 40%), radial-gradient(circle at 85% 90%, #00c2ff 0%, transparent 45%), linear-gradient(135deg, #5b16a8, #24124a);
+}
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+#head { text-align: center; padding: calc(var(--u) * 3) calc(var(--u) * 3) 0; }
+#headline { margin: 0; font-size: calc(var(--u) * 8); line-height: 1; text-shadow: 0 calc(var(--u) * 0.5) 0 #c2185b; }
+#event { margin: calc(var(--u) * 1) 0 0; font-size: calc(var(--u) * 2.6); opacity: 0.85; min-height: 1.2em; }
+#grid { display: grid; gap: calc(var(--u) * 2); justify-content: center; align-content: center; height: calc(100% - var(--u) * 16); padding: calc(var(--u) * 2); box-sizing: border-box; }
+.card {
+  border: none; padding: calc(var(--card) * 0.05); background: #fff; border-radius: calc(var(--card) * 0.08); cursor: pointer;
+  box-shadow: 0 calc(var(--u) * 0.8) 0 #b8326e, 0 calc(var(--u) * 1.5) calc(var(--u) * 3) rgba(0,0,0,0.3);
+  transition: transform 0.15s cubic-bezier(.2,1.6,.4,1); font: inherit;
+}
+.card:active { transform: scale(0.94); }
+.pic { aspect-ratio: 1; border-radius: calc(var(--card) * 0.06); background: #8e7cc3 center / cover no-repeat; display: grid; place-items: center; }
+.pic span { font-size: calc(var(--card) * 0.4); font-weight: 700; color: rgba(255,255,255,0.9); }
+.name { color: #2a0f4a; font-weight: 700; font-size: calc(var(--card) * 0.085); margin-top: calc(var(--card) * 0.04); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#toast { position: fixed; left: 50%; bottom: calc(var(--u) * 5); translate: -50% 0; z-index: 20; background: #fff; color: #2a0f4a; font-weight: 700; font-size: calc(var(--u) * 3.5); padding: 0.5em 1.4em; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+#toast[hidden] { display: none; }
