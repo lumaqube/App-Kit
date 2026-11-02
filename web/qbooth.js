@@ -9,6 +9,10 @@
 //   await booth.startWithTemplate(id)             a session with that template, from wherever Q-Booth is
 //   booth.can('camera/capture')                   is that action accepted right now (status.available)
 //   booth.coverUrl(templateId)                    the cover image URL (404 when none: use a placeholder)
+//   booth.categoryCoverUrl(categoryId)            a category's cover, the same way
+//   booth.on('result', r => ...)                  a guest's results are ready (r = { id, index, count })
+//   await booth.result()                          those results: { ok, data: { id, onScreen, items: [{ index, kind, mime, url, thumbUrl }] } }
+//   booth.resultFileUrl(index, thumb)             one result file (photo / gif / video) or its thumbnail, for <img> / <video>
 //   booth.hold(ms)                                keep the window up a little after the hand-over (max 20 s)
 const handlers = {};
 const emit = (name, data) => (handlers[name] || []).forEach(fn => { try { fn(data); } catch (err) { console.error(err); } });
@@ -32,7 +36,11 @@ export const booth = {
   },
   coverUrl: id => '/cover/' + encodeURIComponent(id),
   categoryCoverUrl: id => '/category-cover/' + encodeURIComponent(id),
-  eventCoverUrl: () => '/event-cover',
+  async result() {
+    try { return await (await fetch('/result', { cache: 'no-store' })).json(); }
+    catch { return { ok: false, error: { code: 'offline' } }; }
+  },
+  resultFileUrl: (index, thumb) => '/result/file?index=' + encodeURIComponent(index) + (thumb ? '&thumb=1' : ''),
   hold: ms => fetch('/app/hold', { method: 'POST', body: JSON.stringify({ ms }) }).catch(() => { }),
 };
 
@@ -56,6 +64,7 @@ export function startPolling(ms = 300) {
       const key = s.templates.map(t => t.id + ':' + t.name).join('|');
       if (key !== prevKey) { prevKey = key; emit('templates', s.templates); }
       if (JSON.stringify(s.busy) !== JSON.stringify(prev?.busy)) emit('busy', s.busy || {});
+      if (s.result?.id && s.result.id !== prev?.result?.id) emit('result', s.result);
       emit('state', s);
       prev = s;
     }

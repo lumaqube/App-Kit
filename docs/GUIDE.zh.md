@@ -7,7 +7,7 @@ App Kit 是一个基础框架，用来开发通过拍照亭应用的 Local API *
 这类应用都需要的底层工作由套件完成，所以一个应用只需要关心它自己的创意：
 
 - 与拍照亭应用通信（密码保存在服务器端、轮询状态、把变化转换成事件），
-- 模板封面（Local API 不提供图片），
+- 模板封面和宾客的成品（照片 / GIF / 视频），以普通 URL 提供给 `<img>` / `<video>`，
 - 一个桌面窗口：只在你选定的页面上覆盖在拍照亭应用之上，宾客进入下一步时把屏幕交还给它，
 - 操作员设置界面（带 PIN 码）、等待界面、托盘图标、密钥，
 - 适配任意屏幕比例的布局、由代码生成的声音、彩纸特效，
@@ -45,17 +45,18 @@ node tools/build.mjs quiz                    # dist/Photo Quiz-win32-x64/Photo Q
  ┌─ the booth app ────────────────┐        ┌─ your app (one exe, or `serve` in a browser) ──────────────┐
  │ event window (kiosk)           │        │ shell/main.js   Electron: window/tray/keys, raises booth app│
  │ Local API  :8730  ◀────────────┼─HTTP───┤ core/server.js  your app's server :39xx                     │
- │ events\<id>\event.json + covers│◀─read──┤   core/watch.js   polls status -> events                    │
- └────────────────────────────────┘  only  │   core/covers.js  covers from the event folder              │
-                                           │   <app>/server.js your optional server code                 │
-                                           │      ▲ /state /cover /qb/* /booth/* /settings               │
+ │  status, templates + covers,   │  only  │   core/watch.js   polls status -> events                    │
+ │  result + result files         │        │   core/covers.js  covers from the Local API, cached         │
+ └────────────────────────────────┘        │   <app>/server.js your optional server code                 │
+                                           │      ▲ /state /cover /result /qb/* /booth/* /settings       │
                                            │ page: <app>/public + /kit/*.js (web/)                        │
                                            └──────────────────────────────────────────────────────────────┘
 ```
 
 - **页面**（你的 HTML/JS）只与它自己的服务器通信，永远看不到 Local API 密码。
-- **服务器**（每个应用一个，运行在 127.0.0.1）轮询拍照亭应用、提供封面和设置，并转发操作。
-  你自己的服务器代码（可选）运行在它内部。
+- **服务器**（每个应用一个，运行在 127.0.0.1）轮询拍照亭应用、提供封面、成品和设置，并转发操作。
+  你自己的服务器代码（可选）运行在它内部。它不读取拍照亭应用文件夹中的任何内容：一切都通过 HTTP，
+  所以拍照亭在另一台电脑上时也完全一样。
 - **外壳**（Electron）显示页面，并按服务器的指示切换窗口状态（full / setup / hidden）。
   在浏览器中（`serve`）没有外壳：页面相同，但没有窗口规则。
 
@@ -64,15 +65,13 @@ node tools/build.mjs quiz                    # dist/Photo Quiz-win32-x64/Photo Q
 ### 品牌：QBooth、BleepShare、XBooth
 
 拍照亭应用是同一个程序的三个品牌版本：**QBooth.exe**（报告 "QBooth"）、**BleepShare.exe**
-（"BleepShareAI"）和 **XBooth.exe**（"XBooth"），各有自己的安装文件夹（默认 C:\QBoothAIV5、
-C:\BleepShareV5、C:\XBoothV5）。Local API 相同。因此：
+（"BleepShareAI"）和 **XBooth.exe**（"XBooth"）。Local API 相同。因此：
 
 - **不要在应用界面中写品牌名称。** 在文本中写 `{booth}`：`kit.t()` 会填入所连接的拍照亭应用名称
   （`status.app.name`，"QBooth" 显示为 "Q-Booth"），或操作员的 **品牌名称** 设置，或在尚未连接时
   使用中性词（"the booth app" / "aplikasi booth" / "拍照亭应用"）。`kit.brand` 和 `booth.state.brand` 保存该名称。
-- 套件通过 **监听 Local API 端口的进程**（`core/locate.js`）找到拍照亭应用：它的 pid（用于把活动窗口
-  提到前面）和它的文件夹（封面）。不猜测任何 exe 或文件夹名称；常用文件夹只是后备。
-  `设置 → 拍照亭应用文件夹` 可以覆盖。
+- 套件通过 **监听 Local API 端口的进程**（`core/locate.js`）找到拍照亭应用：它的 pid 和 exe，
+  用于把活动窗口提到前面。不猜测任何 exe 或文件夹名称，也不读取它的文件夹：封面和成品都来自 Local API。
 - 用模拟器测试其他品牌：在 config.json 中设置 `"mockBrand": "XBooth"`（或 `BleepShareAI`）。
 
 ## 3. 文件夹结构
@@ -81,16 +80,18 @@ C:\BleepShareV5、C:\XBoothV5）。Local API 相同。因此：
 App Kit/
   core/          Node modules (no dependencies)
     qbooth.js      Local API client: createClient({ host, port, password })
-    watch.js       status polling -> events (page, phase, session, event, templates, busy, online)
-    covers.js      covers from <qboothDir>\events\<id> (read only); listEvents, savedTemplates
+    watch.js       status polling -> events (page, phase, session, event, templates, busy, result, online)
+    covers.js      template / category covers from the Local API (covers=1), kept in memory
     server.js      the app server: createAppServer({ appDir, mock }), window modes, endpoints
     settings.js    kit settings fields + app fields -> config.json, settings screen data
-    mock.js        a fake booth app (same API), optionally with a real event's templates
+    locate.js      the booth app's process on the Local API port (pid + exe, to raise its window)
+    mock.js        a fake booth app (API 1.1), optionally playing a real event
+    mock-event.js  reads an event folder (event.json) for the mock only
     listen.js      listen with retry (a closing old copy may still hold the port)
   shell/         Electron: main.js (the desktop app), winfront.js (raise windows), icon.png / .ico
   web/           browser modules, served at /kit/
     kit.js         startKit(): config, texts, settings, waiting screen, polling   <- start here
-    qbooth.js      booth: events, state, send(), startWithTemplate(), coverUrl(), hold()
+    qbooth.js      booth: events, state, send(), startWithTemplate(), coverUrl(), result(), hold()
     layout.js      fit(), place(), contain(): any screen size and ratio
     audio.js       Sound: BGM loop + effects made by code
     fx.js          Fx: confetti and sparkles
@@ -200,23 +201,33 @@ document.querySelector('#go').onclick = () => booth.startWithTemplate(list[0].id
 | `booth.on('event', fn)` | `{ event: { id, name } \| null }` |
 | `booth.on('templates', fn)` | `[{ id, name, index, onScreen, categoryId }]` 正在运行的活动中宾客可选的模板 |
 | `booth.on('busy', fn)` | `{ dialog, processing }` |
+| `booth.on('result', fn)` | `{ id, index, count }` 新宾客的成品已就绪（`status.result` 带新的 `id`；API 1.1） |
 | `booth.on('online' / 'offline', fn)` | Local API 有响应 / 无响应 |
 | `booth.state` | 最近一次状态 |
 | `booth.can(action)` | 该操作当前是否在 `available` 中 |
 | `await booth.send(action, params)` | 任意 Local API 操作（`'camera/capture'`、`'template/select', { id }` ……）→ `{ ok, accepted }` 或 `{ ok: false, error: { code } }`。`event/start` / `event/stop` 需要设置 PIN 码：仅限操作员 |
 | `await booth.startWithTemplate(id)` | 无论拍照亭应用当前在哪个页面，都用该模板开始一次拍摄流程（Welcome：直接开始；选择页：先回到 Welcome） |
-| `await booth.read('events' \| 'templates' \| 'categories', params)` | 读取 |
-| `booth.coverUrl(templateId)` | `/cover/<id>`：封面图片，本机没有封面时返回 404（显示占位图） |
-| `booth.categoryCoverUrl(id)`, `booth.eventCoverUrl()` | 分类 / 活动封面 |
+| `await booth.read('events' \| 'templates' \| 'categories' \| 'result', params)` | 读取 |
+| `booth.coverUrl(templateId)` | `/cover/<id>`：封面图片，拍照亭应用没有发送封面时返回 404（显示占位图） |
+| `booth.categoryCoverUrl(id)` | 分类封面，用法相同 |
+| `await booth.result()` | 最近一位宾客的成品：`{ ok, data: { id, onScreen, items: [{ index, kind, mime, bytes, canShare, url, thumbUrl }] } }`；`url` / `thumbUrl` 指向套件自己的服务器 |
+| `booth.resultFileUrl(index, thumb)` | `/result/file?index=n[&thumb=1]`：一个成品文件（照片 / GIF / 视频）或其缩略图，用于 `<img>` / `<video>` |
 | `booth.hold(ms)` | 拍照亭应用切走后让覆盖层再保留 ms 毫秒（≤ 20 s）：把庆祝动画播完 |
 
-### 5.3 封面
+### 5.3 封面和宾客的成品
 
 ```js
 const img = new Image();
 img.onload = () => card.style.backgroundImage = `url("${img.src}")`;
-img.onerror = () => card.textContent = name.charAt(0);   // no cover here: a placeholder
+img.onerror = () => card.textContent = name.charAt(0);   // no cover: a placeholder
 img.src = booth.coverUrl(template.id);
+
+booth.on('result', async () => {
+  const r = await booth.result();
+  if (!r.ok) return;                                      // no_result: the next guest already started
+  const first = r.data.items[0];
+  preview.src = first.thumbUrl;                           // = booth.resultFileUrl(first.index, true)
+});
 ```
 
 封面来源：见第 8 节。
@@ -261,7 +272,7 @@ fx.burst(x, y, 150); fx.rain(120);
 
 ## 6. 你的服务器代码（`<app>/server.js`，可选）
 
-用于页面做不到的事：计数、记录日志、在拍照亭文件夹之外写文件、调用其他服务、
+用于页面做不到的事：计数、记录日志、保存你自己的文件、调用其他服务、
 在没有打开页面时响应拍照亭应用、添加接口。
 
 ```js
@@ -278,10 +289,10 @@ export default function (kit) {
 | `kit.` | |
 |---|---|
 | `cfg()` | 当前设置（包括密钥：绝不要发给页面） |
-| `client` | Local API 客户端（`core/qbooth.js`）：`status()`、`templates()`、`send(cmd, params)`、`selectTemplate(id)`、`capture()`…… |
-| `watch` | 轮询器（`core/watch.js`）：`on('page' \| 'phase' \| 'session' \| 'event' \| 'templates' \| 'busy' \| 'online' \| 'offline' \| 'status')`、`state` |
+| `client` | Local API 客户端（`core/qbooth.js`）：`status()`、`templates(eventId, { covers: 1 })`、`result()`、`resultFile(index, thumb, headers)`（原始 fetch Response，用于转发流）、`send(cmd, params)`、`selectTemplate(id)`、`capture()`…… |
+| `watch` | 轮询器（`core/watch.js`）：`on('page' \| 'phase' \| 'session' \| 'event' \| 'templates' \| 'busy' \| 'result' \| 'online' \| 'offline' \| 'status')`、`state` |
 | `startWithTemplate(id)` | 与页面中的相同 |
-| `covers` | `core/covers.js` |
+| `covers` | `core/covers.js`，异步：`template(id, eventId?)`、`category(id, eventId?)` → `{ type, data (Buffer), width, height, video, hash }` 或 null；`list(eventId?)` → 带 `cover` 的 `{ templates, categories }`；`forget()`（下次重新获取） |
 | `route(method, path, handler)` | 你的接口；`path` 可以以 `*` 结尾；handler 为 `(req, res, { url, body(), json(code, obj) })`。路径请以你的应用 id 作前缀 |
 | `log(...)` | 输出到控制台 / `logs/app.log` |
 | `manifest` | app.json |
@@ -293,7 +304,7 @@ export default function (kit) {
 
 操作员可以通过 **S**、**托盘图标**、**Ctrl+Alt+Shift+S**，或长按左上角 3 秒打开设置
 （如果设置了 PIN 码，会先要求输入）。标签页：**拍照亭**（标题为拍照亭应用的名称；地址、端口、密码 + 测试连接、
-拍照亭应用文件夹、测试模式），**你的应用**（语言 + 你的字段），**屏幕**（覆盖层、屏幕、隐藏 / 显示、快捷键），
+品牌名称、测试模式），**你的应用**（语言 + 你的字段），**屏幕**（覆盖层、屏幕、隐藏 / 显示、快捷键），
 **安全**（PIN 码）。
 
 你的字段写在 `app.json` → `settings` 中：
@@ -323,24 +334,42 @@ export default function (kit) {
 - **快捷键页**：进入应用的所有方式（上面的按键、托盘图标、左上角、菜单按钮、再次打开 exe 等），
   以所选语言显示，然后是 `app.json` → `shortcuts` 中应用自己的按键。
 
-## 8. 封面
+## 8. 封面和成品（Local API 1.1）
 
-Local API 只返回模板的 id 和名称，不返回图片。套件从**同一台电脑上**拍照亭应用自己的活动文件夹中读取封面，
-只读：
+两者都只来自 Local API；套件不读取拍照亭应用文件夹中的任何内容，所以运行在**另一台电脑**上的应用
+（通过拍照亭应用的 Allow LAN）也以同样方式获得它们。
 
-1. `<qboothDir>\events\<eventId>\event.json` → `templates[].cover`（活动文件夹中的一张图片），
-2. 否则读取模板文件 `templates[].path`（`.qso` / `.qsc`，JSON）→ `event_info.preview_image[0].mBase64`，
-3. 都没有：绘制占位图（首字母、一种颜色）。
+**需要 Local API 1.1 的拍照亭应用**（5.9.2.0 之后的版本；`status.app.apiVersion` 为 `"1.1"`）。
+连接 1.0 的拍照亭应用时，所有应用仍能正常运行：封面返回 404（绘制占位图），成品接口返回
+`not_found`。设计时两种情况都要考虑。
 
-`qboothDir` 默认留空：自动找到占用 Local API 端口的拍照亭应用并使用其文件夹（设置 → 拍照亭）。分类封面：`categories[].cover`；
-活动本身的封面：`coverImage`。
+**封面。** `templates?covers=1` / `categories?covers=1` 在 JSON 中直接发送每个封面
+（`{ mime, width, height, video, hash, data: "data:...;base64,..." }`），尺寸与拍照亭自己的选择页
+显示的一致；视频封面发送其海报帧（`video: true`）。`core/covers.js` 每个活动 / 模板列表只请求一次
+（封面不轮询），保存在内存中，并以图片形式提供：
 
-- 页面：`booth.coverUrl(id)`。服务器：`kit.covers.coverOf(dir, eventId, templateId)` → `{ type, data, from }`。
+- 页面：`booth.coverUrl(id)` → `/cover/<templateId>`，`booth.categoryCoverUrl(id)` →
+  `/category-cover/<id>`；两者都可加 `?event=<id>` 读取未运行的活动。404 = 没有封面：
+  绘制占位图（首字母、一种颜色）。API 没有活动封面。
+- 服务器：`await kit.covers.template(id, eventId?)` → `{ type, data, width, height, video, hash }` 或 null。
 - 命令行：`node tools/covers.mjs` 列出活动；`node tools/covers.mjs "<event name | id>" --out <folder>`
-  导出全部封面（`01_<name>.jpg` …）+ `manifest.json`。
-- 运行在**另一台电脑**上的应用（通过拍照亭应用的 Allow LAN）无法访问这些文件：封面返回 404。
-  设计时要考虑占位图。（已向拍照亭应用的开发者提议在 Local API 中增加 `GET templates/{id}/cover`。）
-- **绝不要写入拍照亭应用的文件夹。** 封面工具会拒绝位于其中的 `--out`。
+  导出全部封面（`01_<name>.jpg` …）+ `manifest.json`（每个模板一项 `{ index, id, name, studio,
+  categoryId, file, width, height, video }`）。连接：`--app <app>`（该应用的 config.json）、
+  `--host --port --password` 或 `--mock`。
+
+**成品。** 最近一位宾客的输出（照片、GIF、视频），从 Result 页面出现起，到下一位宾客开始为止。
+只有最近一位宾客：之前的成品已不可读取。
+
+- `status.result` = `{ count, index, id }`；新的 `id` = 新的成品 → `booth.on('result')` /
+  `kit.watch.on('result')`。
+- `await booth.result()` → `{ id, onScreen, items: [{ index, kind, mime, bytes, canShare, url, thumbUrl }] }`
+  （`kind` 为 `photo` | `gif` | `video`）。套件把 `url` / `thumbUrl` 改写为它自己的
+  `/result/file?index=n[&thumb=1]`（= `booth.resultFileUrl(index, thumb)`），由它加上密码、转发字节范围，
+  从拍照亭应用流式传输文件，所以 `<img>` 和 `<video>`（包括拖动进度）可直接使用。`no_result`（409）：
+  还没有成品，或下一位宾客已经开始。
+- 成品属于宾客：显示即可，不要保存（第 12 节）。
+
+**绝不要写入拍照亭应用的文件夹。** 套件根本不需要接触它。
 
 ---
 
@@ -368,9 +397,12 @@ refused | none`。
 
 ### 10.1 模拟拍照亭应用（mock）
 
-`--mock`（或 设置 → 拍照亭 → 测试模式）会在 8749 端口启动 `core/mock.js`：API、页面、阶段和错误都相同。
-把 **测试模式：借用活动** 设为 `<qboothDir>\events` 中的某个活动 id（列表：`node tools/covers.mjs`），
-模拟器就会使用它的模板，封面也就是真实的。app.json 中的 `mock.auto`：拍摄流程自动进行，或等待你的命令。
+`--mock`（或 设置 → 拍照亭 → 测试模式）会在 8749 端口启动 `core/mock.js`：API、页面、阶段和错误都相同，
+API 1.1：封面（每个演示模板一张绘制的卡片）和成品（一次拍摄的“照片”就是其模板的封面）。
+把 **测试模式：借用活动**（`mockEvent`）设为**一个包含 event.json 的文件夹**：解压后的 `.qevent`，
+或活动文件夹的副本。模拟器就会播放该活动及其模板、分类和封面（`core/mock-event.js` 读取活动自己的
+封面文件，没有时读取模板文件中的预览图）。这是套件唯一读取活动文件夹的地方，而且只读取你指定的文件夹。
+app.json 中的 `mock.auto`：拍摄流程自动进行，或等待你的命令。
 
 仅限模拟器的调用（用于测试）：`POST /api/v1/mock/dialog {on}`（一个拍照亭应用的对话框），`POST
 /api/v1/mock/event {on}`（启动 / 停止活动）。密码为 `mock`。
@@ -418,7 +450,8 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
    你的应用不得绕过。
 3. **对话框属于拍照亭应用。** 保持 `hideOnDialog: true`；在 `busy.dialog` 期间所有操作都会失败。
 4. **密钥留在服务器端。** Local API 密码和你的 `secret` 字段绝不能出现在页面、日志、截图或 git 中。
-5. **拍照亭应用的文件夹是只读的。** 绝不要写入 `C:\QBoothPro`（或 `qboothDir`）。
+5. **不要碰拍照亭应用的文件夹。** 绝不要写入 `C:\QBoothPro`（或任何安装文件夹）；套件也不从中读取
+   任何内容：封面和成品都来自 Local API。
 6. **宾客的数据。** 除非应用的用途需要且操作员知情，否则不要保存照片、声音或人脸。
 7. **每个应用一个端口**，且唯一（app.json）。
 8. **套件是共享的。** 只有当某个改动是所有应用都需要的时候，才修改 `core/`、`shell/`、`web/`；
@@ -431,7 +464,7 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 - [ ] `node tools/new-app.mjs <id> "<Name>"`；把 `window.showOn` 设为你要覆盖的页面
 - [ ] en / id / zh 三种语言的文本
 - [ ] 布局基于 `fit()`；在 16:9、9:16、4:5、21:9 下截图
-- [ ] 带占位图的封面（没有封面文件时也能正常工作）
+- [ ] 带占位图的封面，成品为可选（连接 Local API 1.0 的拍照亭应用也能正常工作）
 - [ ] 只在 `booth.can()` 时执行操作；用通俗的话向宾客显示错误
 - [ ] 用模拟器测试完整流程（`--mock`，借用活动），然后再用真实的拍照亭应用测试
 - [ ] `node tools/build.mjs <id>`；exe 在没有活动时以隐藏状态启动，在正确的页面出现，
@@ -449,8 +482,10 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `GET /kit/<file>` | 套件的 `web/` |
 | `GET /config.json` | 公开设置 + `{ app, mock, desktop, settingsLocked }` |
 | `GET /state` | `{ online, error, mode, overlay, event, page, session, camera, result, busy, available, templates }` |
-| `GET /cover/<templateId>[?event=<id>]`, `/category-cover/<id>`, `/event-cover` | 图片（404 = 没有） |
-| `GET /qb/events \| templates \| categories \| commands \| status` | Local API 读取（`?eventId=`） |
+| `GET /cover/<templateId>`, `/category-cover/<id>`（`?event=<id>`） | 来自 Local API 的图片（404 = 没有） |
+| `GET /result` | 最近一位宾客的成品，`url` / `thumbUrl` 改写为 `/result/file` |
+| `GET /result/file?index=n[&thumb=1]` | 该文件，从拍照亭应用流式传输（支持字节范围） |
+| `GET /qb/events \| templates \| categories \| result \| commands \| status` | Local API 读取（`?eventId=`） |
 | `POST /qb/<action>` | Local API 操作（event/start、event/stop 需要 `x-settings-pin`） |
 | `POST /booth/start-with-template {id}` | 从任意页面用该模板开始一次拍摄流程 |
 | `POST /app/hold {ms}` | 让覆盖层保持显示（≤ 20 s） |
@@ -459,4 +494,4 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `GET/POST /settings`, `POST /settings/unlock {pin}`, `/settings/test`, `/app/hide`, `/app/quit` | 操作员使用（PIN 码请求头 `x-settings-pin`） |
 | 你的 `kit.route(...)` | 优先匹配 |
 
-版本：Electron 45、Node 22、Local API v1。套件在运行时没有任何 npm 依赖。
+版本：Electron 45、Node 22、Local API v1（封面和成品需要 1.1）。套件在运行时没有任何 npm 依赖。

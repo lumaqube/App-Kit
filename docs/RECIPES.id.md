@@ -18,7 +18,7 @@ booth.on('templates', list => {
     card.querySelector('b').textContent = tp.name;
     const img = new Image();
     img.onload = () => { card.querySelector('.pic').textContent = ''; card.querySelector('.pic').style.backgroundImage = `url("${img.src}")`; };
-    img.src = booth.coverUrl(tp.id);   // 404 when no cover on this PC: the letter stays
+    img.src = booth.coverUrl(tp.id);   // 404 when the booth app sends no cover (API 1.0): the letter stays
     card.onclick = () => booth.startWithTemplate(tp.id);
     return card;
   }));
@@ -73,7 +73,8 @@ Pakai `"mock": { "auto": false }` di app.json supaya booth palsu menunggu tekana
 
 ### 6. Sesuatu di page hasil (cetak, QR, terima kasih)
 
-`showOn: ["result"]`, lalu tutupi hanya sebagian layar (foto hasilnya milik aplikasi booth):
+`showOn: ["result"]`, lalu tutupi hanya sebagian layar (foto hasilnya milik aplikasi booth; untuk
+menampilkannya di layout Anda sendiri: resep 16):
 
 ```js
 printBtn.hidden = !booth.can('result/print');
@@ -144,7 +145,7 @@ function showError(code) { toast(ERR[kit.lang]?.[code] || ERR.en[code] || code);
 ### 12. Cover untuk desainer (di luar app)
 
 ```bash
-node tools/covers.mjs                              # the events on this PC
+node tools/covers.mjs                              # the booth app's events (through its Local API)
 node tools/covers.mjs "Wedding" --out D:\covers\wedding
 ```
 
@@ -165,3 +166,23 @@ Lakukan untuk 1920×1080, 1080×1920, 1080×1350, 2560×1080. Buka pengaturan de
 ```bash
 node tools/qb.mjs watch --app <id>     # page / phase / session changes as they happen
 ```
+
+### 16. Tampilkan hasil tamu (foto / video)
+
+```js
+// app.json: "showOn": ["result"] (or "window" mode on a second screen)
+booth.on('result', async () => {                          // a new guest's results are ready
+  const r = await booth.result();
+  if (!r.ok) return;                                      // no_result (the next guest started) / not_found (API 1.0)
+  gallery.replaceChildren(...r.data.items.map(it => {
+    const el = document.createElement(it.kind === 'video' ? 'video' : 'img');
+    if (it.kind === 'video') Object.assign(el, { autoplay: true, loop: true, muted: true, playsInline: true, poster: it.thumbUrl });
+    el.src = it.url;                                      // = booth.resultFileUrl(it.index); thumbnail: it.thumbUrl
+    return el;
+  }));
+});
+```
+
+Butuh aplikasi booth dengan Local API 1.1 (versi setelah 5.9.2.0). Hanya hasil tamu terakhir yang
+bisa dibaca, sampai tamu berikutnya mulai. URL-nya mengarah ke server app Anda sendiri (tanpa
+password di page; seek video jalan). Tampilkan hasilnya, jangan disimpan (GUIDE §12 "Data tamu").

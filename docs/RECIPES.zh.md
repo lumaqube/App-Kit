@@ -18,7 +18,7 @@ booth.on('templates', list => {
     card.querySelector('b').textContent = tp.name;
     const img = new Image();
     img.onload = () => { card.querySelector('.pic').textContent = ''; card.querySelector('.pic').style.backgroundImage = `url("${img.src}")`; };
-    img.src = booth.coverUrl(tp.id);   // 404 when no cover on this PC: the letter stays
+    img.src = booth.coverUrl(tp.id);   // 404 when the booth app sends no cover (API 1.0): the letter stays
     card.onclick = () => booth.startWithTemplate(tp.id);
     return card;
   }));
@@ -73,7 +73,7 @@ processBtn.onclick = () => booth.send('camera/process');
 
 ### 6. 在结果页上显示内容（打印、二维码、致谢）
 
-`showOn: ["result"]`，然后只遮住屏幕的一部分（结果照片属于拍照亭应用）：
+`showOn: ["result"]`，然后只遮住屏幕的一部分（结果照片属于拍照亭应用；要在你自己的布局中显示它：见第 16 条）：
 
 ```js
 printBtn.hidden = !booth.can('result/print');
@@ -144,7 +144,7 @@ function showError(code) { toast(ERR[kit.lang]?.[code] || ERR.en[code] || code);
 ### 12. 给设计师导出封面（在应用之外）
 
 ```bash
-node tools/covers.mjs                              # the events on this PC
+node tools/covers.mjs                              # the booth app's events (through its Local API)
 node tools/covers.mjs "Wedding" --out D:\covers\wedding
 ```
 
@@ -165,3 +165,23 @@ node tools/covers.mjs "Wedding" --out D:\covers\wedding
 ```bash
 node tools/qb.mjs watch --app <id>     # page / phase / session changes as they happen
 ```
+
+### 16. 显示宾客的成品（照片 / 视频）
+
+```js
+// app.json: "showOn": ["result"] (or "window" mode on a second screen)
+booth.on('result', async () => {                          // a new guest's results are ready
+  const r = await booth.result();
+  if (!r.ok) return;                                      // no_result (the next guest started) / not_found (API 1.0)
+  gallery.replaceChildren(...r.data.items.map(it => {
+    const el = document.createElement(it.kind === 'video' ? 'video' : 'img');
+    if (it.kind === 'video') Object.assign(el, { autoplay: true, loop: true, muted: true, playsInline: true, poster: it.thumbUrl });
+    el.src = it.url;                                      // = booth.resultFileUrl(it.index); thumbnail: it.thumbUrl
+    return el;
+  }));
+});
+```
+
+需要 Local API 1.1 的拍照亭应用（5.9.2.0 之后的版本）。只能读取最近一位宾客的成品，直到下一位宾客开始。
+URL 指向你的应用自己的服务器（页面中没有密码；视频可以拖动进度）。
+显示成品即可，不要保存（GUIDE 第 12 节“宾客的数据”）。

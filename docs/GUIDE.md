@@ -8,7 +8,7 @@ monitor, a counter, a printer queue, anything. The kit does the plumbing every s
 an app is only its idea:
 
 - talking to the booth app (password kept on the server, status polled, changes turned into events),
-- template covers (the Local API has no images),
+- template covers and the guest's result (photo / GIF / video) as plain URLs for `<img>` / `<video>`,
 - a desktop window that sits on top of the booth app only on the pages you choose and hands
   the screen back to it when the guest moves on,
 - an operator settings screen (with PIN), a waiting screen, a tray icon, secret keys,
@@ -47,17 +47,18 @@ press **S** (or the tray icon) → Settings → Booth: port + password → **Tes
  ┌─ the booth app ────────────────┐        ┌─ your app (one exe, or `serve` in a browser) ──────────────┐
  │ event window (kiosk)           │        │ shell/main.js   Electron: window/tray/keys, raises booth app│
  │ Local API  :8730  ◀────────────┼─HTTP───┤ core/server.js  your app's server :39xx                     │
- │ events\<id>\event.json + covers│◀─read──┤   core/watch.js   polls status -> events                    │
- └────────────────────────────────┘  only  │   core/covers.js  covers from the event folder              │
-                                           │   <app>/server.js your optional server code                 │
-                                           │      ▲ /state /cover /qb/* /booth/* /settings               │
+ │  status, templates + covers,   │  only  │   core/watch.js   polls status -> events                    │
+ │  result + result files         │        │   core/covers.js  covers from the Local API, cached         │
+ └────────────────────────────────┘        │   <app>/server.js your optional server code                 │
+                                           │      ▲ /state /cover /result /qb/* /booth/* /settings       │
                                            │ page: <app>/public + /kit/*.js (web/)                        │
                                            └──────────────────────────────────────────────────────────────┘
 ```
 
 - The **page** (your HTML/JS) talks only to its own server. It never sees the Local API password.
-- The **server** (one per app, on 127.0.0.1) polls the booth app, serves covers and settings, and
-  forwards actions. Your own server code (optional) runs inside it.
+- The **server** (one per app, on 127.0.0.1) polls the booth app, serves covers, results and
+  settings, and forwards actions. Your own server code (optional) runs inside it. It reads nothing
+  from the booth app's folder: everything comes over HTTP, so a booth on another PC works the same.
 - The **shell** (Electron) shows the page and moves the window (full / setup / hidden) as the
   server says. In a browser (`serve`) there is no shell: same page, no window rules.
 
@@ -66,16 +67,15 @@ press **S** (or the tray icon) → Settings → Booth: port + password → **Tes
 ### Brands: QBooth, BleepShare, XBooth
 
 The booth app ships as three brand builds of the same program: **QBooth.exe** (reports "QBooth"),
-**BleepShare.exe** ("BleepShareAI") and **XBooth.exe** ("XBooth"), each with its own install
-folder (C:\QBoothAIV5, C:\BleepShareV5, C:\XBoothV5 by default). The Local API is the same. So:
+**BleepShare.exe** ("BleepShareAI") and **XBooth.exe** ("XBooth"). The Local API is the same. So:
 
 - **Never write a brand name in an app's interface.** Write `{booth}` in your texts: `kit.t()`
   fills it with the connected booth app's name (`status.app.name`, "QBooth" shown as "Q-Booth"),
   or the operator's **Brand name** setting, or before any contact a neutral word ("the booth app" /
   "aplikasi booth" / "拍照亭应用"). `kit.brand` and `booth.state.brand` hold it.
 - The kit finds the booth app by the **process listening on the Local API port** (`core/locate.js`):
-  its pid (to raise its event window), its folder (covers). No exe or folder name is guessed;
-  the usual folders are only a fallback. `Settings → Booth app folder` overrides it.
+  its pid and exe, to raise its event window. No exe or folder name is guessed, and nothing is
+  read from its folder: covers and results come from the Local API.
 - Test another brand with the mock: `"mockBrand": "XBooth"` (or `BleepShareAI`) in config.json.
 
 ## 3. Folder layout
@@ -84,16 +84,18 @@ folder (C:\QBoothAIV5, C:\BleepShareV5, C:\XBoothV5 by default). The Local API i
 App Kit/
   core/          Node modules (no dependencies)
     qbooth.js      Local API client: createClient({ host, port, password })
-    watch.js       status polling -> events (page, phase, session, event, templates, busy, online)
-    covers.js      covers from <qboothDir>\events\<id> (read only); listEvents, savedTemplates
+    watch.js       status polling -> events (page, phase, session, event, templates, busy, result, online)
+    covers.js      template / category covers from the Local API (covers=1), kept in memory
     server.js      the app server: createAppServer({ appDir, mock }), window modes, endpoints
     settings.js    kit settings fields + app fields -> config.json, settings screen data
-    mock.js        a fake booth app (same API), optionally with a real event's templates
+    locate.js      the booth app's process on the Local API port (pid + exe, to raise its window)
+    mock.js        a fake booth app (API 1.1), optionally playing a real event
+    mock-event.js  reads an event folder (event.json) for the mock only
     listen.js      listen with retry (a closing old copy may still hold the port)
   shell/         Electron: main.js (the desktop app), winfront.js (raise windows), icon.png / .ico
   web/           browser modules, served at /kit/
     kit.js         startKit(): config, texts, settings, waiting screen, polling   <- start here
-    qbooth.js      booth: events, state, send(), startWithTemplate(), coverUrl(), hold()
+    qbooth.js      booth: events, state, send(), startWithTemplate(), coverUrl(), result(), hold()
     layout.js      fit(), place(), contain(): any screen size and ratio
     audio.js       Sound: BGM loop + effects made by code
     fx.js          Fx: confetti and sparkles
@@ -203,23 +205,33 @@ Copy the Content-Security-Policy `<meta>` of the template's index.html (everythi
 | `booth.on('event', fn)` | `{ event: { id, name } \| null }` |
 | `booth.on('templates', fn)` | `[{ id, name, index, onScreen, categoryId }]` the running event's guest-pickable templates |
 | `booth.on('busy', fn)` | `{ dialog, processing }` |
+| `booth.on('result', fn)` | `{ id, index, count }` a new guest's results are ready (`status.result` with a new `id`; API 1.1) |
 | `booth.on('online' / 'offline', fn)` | the Local API answers / does not |
 | `booth.state` | the last state |
 | `booth.can(action)` | is it in `available` now |
 | `await booth.send(action, params)` | any Local API action (`'camera/capture'`, `'template/select', { id }` ...) → `{ ok, accepted }` or `{ ok: false, error: { code } }`. `event/start` / `event/stop` need the settings PIN: operator only |
 | `await booth.startWithTemplate(id)` | start a session with that template from wherever the booth app is (Welcome: direct; a picker: back to Welcome first) |
-| `await booth.read('events' \| 'templates' \| 'categories', params)` | reads |
-| `booth.coverUrl(templateId)` | `/cover/<id>`: the cover image, 404 when there is none on this PC (show a placeholder) |
-| `booth.categoryCoverUrl(id)`, `booth.eventCoverUrl()` | category / event covers |
+| `await booth.read('events' \| 'templates' \| 'categories' \| 'result', params)` | reads |
+| `booth.coverUrl(templateId)` | `/cover/<id>`: the cover image, 404 when the booth app sends none (show a placeholder) |
+| `booth.categoryCoverUrl(id)` | a category's cover, the same way |
+| `await booth.result()` | the latest guest's results: `{ ok, data: { id, onScreen, items: [{ index, kind, mime, bytes, canShare, url, thumbUrl }] } }`; `url` / `thumbUrl` point at the kit's own server |
+| `booth.resultFileUrl(index, thumb)` | `/result/file?index=n[&thumb=1]`: one result file (photo / GIF / video) or its thumbnail, for `<img>` / `<video>` |
 | `booth.hold(ms)` | keep the overlay up for ms (≤ 20 s) after the booth app moved on: finish a celebration |
 
-### 5.3 Covers
+### 5.3 Covers and the guest's result
 
 ```js
 const img = new Image();
 img.onload = () => card.style.backgroundImage = `url("${img.src}")`;
-img.onerror = () => card.textContent = name.charAt(0);   // no cover here: a placeholder
+img.onerror = () => card.textContent = name.charAt(0);   // no cover: a placeholder
 img.src = booth.coverUrl(template.id);
+
+booth.on('result', async () => {
+  const r = await booth.result();
+  if (!r.ok) return;                                      // no_result: the next guest already started
+  const first = r.data.items[0];
+  preview.src = first.thumbUrl;                           // = booth.resultFileUrl(first.index, true)
+});
 ```
 
 Where they come from: section 8.
@@ -264,7 +276,7 @@ All made by code: nothing to license. Own sound files: put them in `public/` and
 
 ## 6. Your server code (`<app>/server.js`, optional)
 
-For what the page cannot do: count, log, write a file outside the booth folder, call another
+For what the page cannot do: count, log, keep a file of your own, call another
 service, react to the booth app while no page is open, add an endpoint.
 
 ```js
@@ -281,10 +293,10 @@ export default function (kit) {
 | `kit.` | |
 |---|---|
 | `cfg()` | the settings now (secrets included: never send them to the page) |
-| `client` | the Local API client (`core/qbooth.js`): `status()`, `templates()`, `send(cmd, params)`, `selectTemplate(id)`, `capture()`, … |
-| `watch` | the poller (`core/watch.js`): `on('page' \| 'phase' \| 'session' \| 'event' \| 'templates' \| 'busy' \| 'online' \| 'offline' \| 'status')`, `state` |
+| `client` | the Local API client (`core/qbooth.js`): `status()`, `templates(eventId, { covers: 1 })`, `result()`, `resultFile(index, thumb, headers)` (the raw fetch Response, to stream on), `send(cmd, params)`, `selectTemplate(id)`, `capture()`, … |
+| `watch` | the poller (`core/watch.js`): `on('page' \| 'phase' \| 'session' \| 'event' \| 'templates' \| 'busy' \| 'result' \| 'online' \| 'offline' \| 'status')`, `state` |
 | `startWithTemplate(id)` | as on the page |
-| `covers` | `core/covers.js` |
+| `covers` | `core/covers.js`, async: `template(id, eventId?)`, `category(id, eventId?)` → `{ type, data (Buffer), width, height, video, hash }` or null; `list(eventId?)` → `{ templates, categories }` with their `cover`; `forget()` (fetch again next time) |
 | `route(method, path, handler)` | your endpoint; `path` may end in `*`; handler `(req, res, { url, body(), json(code, obj) })`. Prefix your paths with your app id |
 | `log(...)` | to the console / `logs/app.log` |
 | `manifest` | app.json |
@@ -296,7 +308,7 @@ export default function (kit) {
 
 The operator opens them with **S**, the **tray icon**, **Ctrl+Alt+Shift+S**, or by holding the
 top-left corner 3 s (PIN first when one is set). Tabs: **Booth** (titled with the booth app's name; address, port, password +
-Test connection, booth app folder, test mode), **your app** (language + your fields), **Screen**
+Test connection, brand name, test mode), **your app** (language + your fields), **Screen**
 (overlay, screen, hide / show, keys), **Security** (PIN).
 
 Your fields in `app.json` → `settings`:
@@ -328,24 +340,42 @@ Local API password: never commit it, never put it in a package or a screenshot.
   button, opening the exe again, …) in the chosen language, then the app's own keys from
   `app.json` → `shortcuts`.
 
-## 8. Covers
+## 8. Covers and results (Local API 1.1)
 
-The Local API returns template ids and names, no images. The kit reads them from the booth app's own
-event folder **on the same PC**, read only:
+Both come from the Local API only; the kit reads nothing from the booth app's folder, so an app
+on **another PC** (the booth app's Allow LAN) gets them the same way.
 
-1. `<qboothDir>\events\<eventId>\event.json` → `templates[].cover` (an image in the event folder),
-2. else the template file `templates[].path` (`.qso` / `.qsc`, JSON) → `event_info.preview_image[0].mBase64`,
-3. else nothing: draw a placeholder (first letter, a colour).
+**Needs the booth app with Local API 1.1** (the version after 5.9.2.0; `status.app.apiVersion`
+`"1.1"`). With a 1.0 booth app every app still works: covers 404 (draw placeholders) and the
+result calls answer `not_found`. Always design for both.
 
-`qboothDir` is empty by default: the booth app on the Local API port is found and its folder used (Settings → Booth). Category covers: `categories[].cover`;
-the event's own cover: `coverImage`.
+**Covers.** `templates?covers=1` / `categories?covers=1` send every cover inline
+(`{ mime, width, height, video, hash, data: "data:...;base64,..." }`), at the size the booth's own
+picker shows it; a video cover sends its poster frame (`video: true`). `core/covers.js` asks once
+per event / template list (covers are not polled), keeps them in memory and serves them as images:
 
-- Page: `booth.coverUrl(id)`. Server: `kit.covers.coverOf(dir, eventId, templateId)` → `{ type, data, from }`.
+- Page: `booth.coverUrl(id)` → `/cover/<templateId>`, `booth.categoryCoverUrl(id)` →
+  `/category-cover/<id>`; both take `?event=<id>` for an event that isn't running. 404 = no cover:
+  draw a placeholder (first letter, a colour). The API has no event cover.
+- Server: `await kit.covers.template(id, eventId?)` → `{ type, data, width, height, video, hash }` or null.
 - Command line: `node tools/covers.mjs` lists the events; `node tools/covers.mjs "<event name | id>" --out <folder>`
-  exports all covers (`01_<name>.jpg` …) + `manifest.json`.
-- An app on **another PC** (the booth app's Allow LAN) has no access to these files: covers 404. Design
-  for placeholders. (A `GET templates/{id}/cover` in the Local API has been proposed to the booth app's developer.)
-- **Never write into the booth app's folder.** The covers tool refuses an `--out` inside it.
+  exports all covers (`01_<name>.jpg` …) + `manifest.json` (`{ index, id, name, studio, categoryId,
+  file, width, height, video }` per template). Connection: `--app <app>` (its config.json),
+  `--host --port --password`, or `--mock`.
+
+**Results.** The latest guest's output (photo, GIF, video), from the moment the Result page shows
+until the next guest starts. Only the latest guest: earlier results are gone.
+
+- `status.result` = `{ count, index, id }`; a new `id` = new results → `booth.on('result')` /
+  `kit.watch.on('result')`.
+- `await booth.result()` → `{ id, onScreen, items: [{ index, kind, mime, bytes, canShare, url, thumbUrl }] }`
+  (`kind` `photo` | `gif` | `video`). The kit rewrites `url` / `thumbUrl` to its own
+  `/result/file?index=n[&thumb=1]` (= `booth.resultFileUrl(index, thumb)`), which streams the file
+  from the booth app with the password added and byte ranges forwarded, so `<img>` and `<video>`
+  (seeking included) just work. `no_result` (409): none yet, or the next guest started.
+- The result belongs to the guest: show it, don't keep it (section 12).
+
+**Never write into the booth app's folder.** The kit has no reason to touch it at all.
 
 ---
 
@@ -375,9 +405,13 @@ refused | none`.
 ### 10.1 The fake booth app (mock)
 
 `--mock` (or Settings → Booth → Test mode) starts `core/mock.js` on port 8749: the same API,
-pages, phases and errors. Set **Test mode: borrow an event** to an event id from
-`<qboothDir>\events` (list: `node tools/covers.mjs`) and the mock uses its templates, so the
-covers are real. `mock.auto` in app.json: the session plays by itself, or waits for your commands.
+pages, phases and errors, API 1.1: covers (a drawn card per demo template) and results (the
+"photo" of a session is its template's cover). Set **Test mode: borrow an event** (`mockEvent`)
+to a **folder holding an event.json**: an extracted `.qevent`, or a copy of an event folder. The
+mock then plays that event with its templates, categories and covers (`core/mock-event.js` reads
+the event's own cover files, else each template file's preview image). This is the only place the
+kit reads an event folder, and only the folder you give it. `mock.auto` in app.json: the session
+plays by itself, or waits for your commands.
 
 Mock-only calls (for tests): `POST /api/v1/mock/dialog {on}` (a booth app dialog), `POST
 /api/v1/mock/event {on}` (start / stop the event). Password `mock`.
@@ -427,7 +461,8 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 3. **Dialogs belong to the booth app.** Keep `hideOnDialog: true`; while `busy.dialog` every action fails.
 4. **Secrets stay on the server.** The Local API password and your `secret` fields never reach the
    page, a log, a screenshot or git.
-5. **The booth app's folders are read only.** Never write into `C:\QBoothPro` (or `qboothDir`).
+5. **Hands off the booth app's folders.** Never write into `C:\QBoothPro` (or any install folder);
+   the kit reads nothing from them either: covers and results come from the Local API.
 6. **Guests' data.** Do not keep photos, voices or faces unless the app's purpose needs it and
    the operator knows.
 7. **One port per app**, unique (app.json).
@@ -441,7 +476,7 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 - [ ] `node tools/new-app.mjs <id> "<Name>"`; set `window.showOn` to the pages you cover
 - [ ] texts in en / id / zh
 - [ ] layout from `fit()`; screenshots at 16:9, 9:16, 4:5, 21:9
-- [ ] covers with placeholders (works with no cover files)
+- [ ] covers with placeholders, results optional (works with a Local API 1.0 booth app)
 - [ ] actions only when `booth.can()`; errors shown to the guest in plain words
 - [ ] mock test of the whole flow (`--mock`, borrowed event), then the real booth app
 - [ ] `node tools/build.mjs <id>`; the exe starts hidden with no event, appears on the right page,
@@ -459,8 +494,10 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `GET /kit/<file>` | the kit's `web/` |
 | `GET /config.json` | public settings + `{ app, mock, desktop, settingsLocked }` |
 | `GET /state` | `{ online, error, mode, overlay, event, page, session, camera, result, busy, available, templates }` |
-| `GET /cover/<templateId>[?event=<id>]`, `/category-cover/<id>`, `/event-cover` | images (404 = none) |
-| `GET /qb/events \| templates \| categories \| commands \| status` | Local API reads (`?eventId=`) |
+| `GET /cover/<templateId>`, `/category-cover/<id>` (`?event=<id>`) | images from the Local API (404 = none) |
+| `GET /result` | the latest guest's results, `url` / `thumbUrl` rewritten to `/result/file` |
+| `GET /result/file?index=n[&thumb=1]` | that file streamed from the booth app (byte ranges) |
+| `GET /qb/events \| templates \| categories \| result \| commands \| status` | Local API reads (`?eventId=`) |
 | `POST /qb/<action>` | Local API actions (event/start, event/stop need `x-settings-pin`) |
 | `POST /booth/start-with-template {id}` | a session with that template from any page |
 | `POST /app/hold {ms}` | keep the overlay up (≤ 20 s) |
@@ -469,4 +506,4 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `GET/POST /settings`, `POST /settings/unlock {pin}`, `/settings/test`, `/app/hide`, `/app/quit` | operator (PIN header `x-settings-pin`) |
 | your `kit.route(...)` | checked first |
 
-Versions: Electron 45, Node 22, Local API v1. The kit has no npm dependencies at run time.
+Versions: Electron 45, Node 22, Local API v1 (1.1 for covers and results). The kit has no npm dependencies at run time.

@@ -6,6 +6,8 @@
 //   w.on('event', ({ event }) => ...)            an event started (event = { id, name }) or stopped (null)
 //   w.on('templates', list => ...)               the running event's templates changed: [{ id, name, index? }]
 //   w.on('busy', busy => ...)                    { dialog, processing } changed
+//   w.on('result', result => ...)                a new guest's results are ready (status.result = { id, index, count });
+//                                                read them with client.result() (API 1.1)
 //   w.on('online', () => ...) / w.on('offline', error => ...)   connection to the Local API
 //   w.on('status', status => ...)                every successful poll
 //   w.state -> { online, error, status, templates }
@@ -48,6 +50,7 @@ export function watchBooth(client, { pollMs = 400, templatesEveryMs = 15000 } = 
     if (!!s.session?.active !== !!prev?.session?.active || s.session?.templateId !== prev?.session?.templateId)
       w.emit('session', { active: !!s.session?.active, template: s.session?.templateId ? { id: s.session.templateId, name: s.session.templateName } : null });
     if (JSON.stringify(s.busy || {}) !== JSON.stringify(prev?.busy || {})) w.emit('busy', s.busy || {});
+    if (s.result?.id && s.result.id !== prev?.result?.id) w.emit('result', s.result);
     w.emit('status', s);
   }
 

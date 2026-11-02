@@ -18,7 +18,7 @@ booth.on('templates', list => {
     card.querySelector('b').textContent = tp.name;
     const img = new Image();
     img.onload = () => { card.querySelector('.pic').textContent = ''; card.querySelector('.pic').style.backgroundImage = `url("${img.src}")`; };
-    img.src = booth.coverUrl(tp.id);   // 404 when no cover on this PC: the letter stays
+    img.src = booth.coverUrl(tp.id);   // 404 when the booth app sends no cover (API 1.0): the letter stays
     card.onclick = () => booth.startWithTemplate(tp.id);
     return card;
   }));
@@ -73,7 +73,8 @@ Use `"mock": { "auto": false }` in app.json so the fake booth waits for these pr
 
 ### 6. Something on the result page (print, QR, thanks)
 
-`showOn: ["result"]`, then cover only part of the screen (the result photo is the booth app's):
+`showOn: ["result"]`, then cover only part of the screen (the result photo is the booth app's; to
+show it in your own layout: recipe 16):
 
 ```js
 printBtn.hidden = !booth.can('result/print');
@@ -144,7 +145,7 @@ function showError(code) { toast(ERR[kit.lang]?.[code] || ERR.en[code] || code);
 ### 12. Covers for a designer (outside the app)
 
 ```bash
-node tools/covers.mjs                              # the events on this PC
+node tools/covers.mjs                              # the booth app's events (through its Local API)
 node tools/covers.mjs "Wedding" --out D:\covers\wedding
 ```
 
@@ -165,3 +166,23 @@ Different `port` in each app.json, both overlay: give them different `showOn` pa
 ```bash
 node tools/qb.mjs watch --app <id>     # page / phase / session changes as they happen
 ```
+
+### 16. Show the guest's result (photo / video)
+
+```js
+// app.json: "showOn": ["result"] (or "window" mode on a second screen)
+booth.on('result', async () => {                          // a new guest's results are ready
+  const r = await booth.result();
+  if (!r.ok) return;                                      // no_result (the next guest started) / not_found (API 1.0)
+  gallery.replaceChildren(...r.data.items.map(it => {
+    const el = document.createElement(it.kind === 'video' ? 'video' : 'img');
+    if (it.kind === 'video') Object.assign(el, { autoplay: true, loop: true, muted: true, playsInline: true, poster: it.thumbUrl });
+    el.src = it.url;                                      // = booth.resultFileUrl(it.index); thumbnail: it.thumbUrl
+    return el;
+  }));
+});
+```
+
+Needs the booth app with Local API 1.1 (the version after 5.9.2.0). Only the latest guest's results
+are readable, until the next guest starts. The URLs point at your app's own server (no password in
+the page; video seeking works). Show the result, don't keep it (GUIDE §12 "Guests' data").

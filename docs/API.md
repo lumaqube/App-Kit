@@ -2,8 +2,9 @@
 
 Languages: **English** · [Bahasa Indonesia](API.id.md) · [中文](API.zh.md)
 
-What a App Kit app needs to know about the booth app's Local API (API version 1). The kit's
-`core/qbooth.js` wraps all of it; you rarely build a URL yourself.
+What a App Kit app needs to know about the booth app's Local API (API version 1.1; what 1.1 adds is
+marked *1.1*, see [Versions](#versions)). The kit's `core/qbooth.js` wraps all of it; you rarely
+build a URL yourself.
 
 ## Switching it on
 
@@ -40,8 +41,8 @@ An action only hands the command to the app: **the effect shows in the next `sta
 | `GET events` | always | every event: id, name, archived, template count, running |
 | `POST event/start {id}` | no event running, no dialog, editor closed | the Launch button |
 | `POST event/stop` | event running, no dialog, not processing | ends the booth session (no exit PIN) |
-| `GET templates {eventId?}` | event running (or with eventId) | guest-pickable templates: `id`, `name`, `studio`, `categoryId`, and on the Template Picker `onScreen` + `index` |
-| `GET categories {eventId?}` | same | enabled categories |
+| `GET templates {eventId?, covers?}` | event running (or with eventId) | guest-pickable templates: `id`, `name`, `studio`, `categoryId`, `cover` (*1.1*), and on the Template Picker `onScreen` + `index` |
+| `GET categories {eventId?, covers?}` | same | enabled categories: `id`, `name`, `cover` (*1.1*) |
 | `POST session/start` | Welcome | the Start button (Start PIN / payment gate first) |
 | `POST session/end` | any page but Welcome | the Home button: back to Welcome |
 | `POST category/select {id \| index}` | Category Picker | a category card tap |
@@ -49,6 +50,8 @@ An action only hands the command to the app: **the effect shows in the next `sta
 | `POST camera/capture` | Camera, live view idle (or the manual wait between shots) | the Capture button |
 | `POST camera/retake` | Camera, Review, retakes left | the Retake button |
 | `POST camera/process` | Camera, Review | the Process button |
+| `GET result` *1.1* | from the Result page until the next guest starts | the latest guest's results (below) |
+| `GET result/file {t \| password, index, thumb?}` *1.1* | same | one result file (or its thumbnail), streamed, byte ranges |
 | `POST result/print` | Result, print allowed | the Print button |
 | `POST result/qr {type: web \| local}` | Result, that QR set up | the QR button (opens a dialog) |
 
@@ -58,11 +61,44 @@ An action only hands the command to the app: **the effect shows in the next `sta
 Nothing paid is bypassed (Start PIN, payment, print limits apply). A wrong state is refused, never
 queued. **A dialog on screen blocks every action** (`dialog_open`); so does processing (`processing`).
 
+## Covers and results (*1.1*)
+
+**Covers.** `templates?covers=1` / `categories?covers=1` fill each item's `cover`:
+
+```json
+{ "mime": "image/jpeg", "width": 800, "height": 800, "video": false, "hash": "…", "data": "data:image/jpeg;base64,…" }
+```
+
+At the size the booth's own picker shows it (400 for a saved event that isn't running); PNG only
+when transparent, else JPEG; a video cover sends its poster frame with `video: true`. `cover` is
+null without `covers=1` or when the card has no cover. Not meant to be polled: read once per
+event / template list (`hash` changes when the cover does). There is no event cover. The kit:
+`core/covers.js`, `/cover/<templateId>`, `/category-cover/<id>`.
+
+**Results.** `GET result`:
+
+```json
+{ "id": "9f2c…", "onScreen": true,
+  "items": [{ "index": 1, "kind": "photo", "mime": "image/jpeg", "bytes": 2481152, "canShare": true,
+              "url": "/api/v1/result/file?t=9f2c…&index=1", "thumbUrl": "/api/v1/result/file?t=9f2c…&index=1&thumb=1" }] }
+```
+
+- Readable from the moment the Result page shows until the next guest starts (also on Welcome in
+  between) or the event stops. **Only the latest guest**; otherwise 409 `no_result`.
+- `kind`: `photo` | `gif` | `video`; `index` matches `status.result.index` (the booth's pager).
+- `id` is new for every guest and is also the token `t` in the file links: `result/file` takes `t`
+  **in place of the password** (an `<img>` / `<video>` can't send a header). An old `t` → 410
+  `expired`. The password works too, for the current results.
+- `result/file` streams the file with byte ranges (video seeking) and HEAD; `thumb=1` = a
+  thumbnail (≤ 1024 px; a video's poster frame), 404 `no_thumbnail` when none can be made.
+- The kit: `/result` rewrites `url` / `thumbUrl` to its own `/result/file?index=n[&thumb=1]`
+  (password added on the server, ranges forwarded); page: `booth.result()`, `booth.resultFileUrl()`.
+
 ## `status`
 
 ```json
 {
-  "app":     { "name": "QBooth", "version": "5.9.3.0", "apiVersion": "1" },
+  "app":     { "name": "QBooth", "version": "5.9.3.0", "apiVersion": "1.1" },
   "event":   { "id": "1781706869_H5A4", "name": "Wedding" },
   "page":    "camera",
   "session": { "active": true, "templateId": "t_123", "templateName": "Strip 3" },
@@ -78,6 +114,7 @@ queued. **A dialog on screen blocks every action** (`dialog_open`); so does proc
 - **Camera phases:** `liveIdle` (live view, waiting) → `counting` (countdown) → `capturing` →
   `reveal` (the shot shown) → `shotDelay` (between shots) … → `review` (retake / process).
   `recording` for video templates.
+- `result`: null, or on the Result page `{ count, index, id }`; a new `id` = a new guest's results (*1.1*).
 - **`available`**: the actions accepted right now, computed by the same checks the commands run.
   Show a button only when its action is in it (`booth.can('camera/capture')` in the kit).
 
@@ -88,7 +125,8 @@ queued. **A dialog on screen blocks every action** (`dialog_open`); so does proc
 | 400 | `bad_request` | missing / invalid parameter |
 | 401 | `unauthorized` | no or wrong password |
 | 404 | `not_found` | unknown path |
-| 404 | `unknown_event` / `unknown_template` / `unknown_category` | id or index not found |
+| 404 | `unknown_event` / `unknown_template` / `unknown_category` / `unknown_result` | id or index not found |
+| 404 | `no_thumbnail` | no thumbnail can be made for that result file (*1.1*) |
 | 405 | `method_not_allowed` | POST to a read |
 | 409 | `no_event` | needs a running event |
 | 409 | `event_running` | an event is already running |
@@ -101,6 +139,8 @@ queued. **A dialog on screen blocks every action** (`dialog_open`); so does proc
 | 409 | `busy` | another action is still settling |
 | 409 | `not_allowed` | blocked by a rule (retakes used up, print limit, print lock) |
 | 409 | `not_configured` | QR type not set up |
+| 409 | `no_result` | no result to read: none shown yet, or the next guest started (*1.1*) |
+| 410 | `expired` | a result file link (`t`) from an earlier guest (*1.1*) |
 | 429 | `too_many_attempts` | too many wrong passwords |
 
 The kit adds one of its own: `offline` (the booth app did not answer at all: off, Local API off, wrong port).
@@ -109,10 +149,20 @@ The kit adds one of its own: `offline` (the booth app did not answer at all: off
 
 | Missing | App Kit |
 |---|---|
-| Template / category / event **images** | read from the event folder on the booth PC: `core/covers.js`, `/cover/<id>`, `tools/covers.mjs` (same PC only) |
 | **Push** notifications | polling + change events (`core/watch.js`, `web/qbooth.js`) |
-| The result **photo** and its QR link | not available; `result/qr` opens the booth app's own QR dialog |
-| Templates of a stopped event | `GET templates?eventId=` (API) or `covers.savedTemplates()` (files) |
+| An **event** cover | none: draw your own |
+| The result's **QR link** | not available; `result/qr` opens the booth app's own QR dialog |
+| Covers / results from a 1.0 booth app | none: covers 404 (placeholders), result calls answer `not_found` |
 
-Proposed to the booth app's developer (not in the API yet): `GET templates/{id}/cover` (images over the
-LAN), outbound triggers (the booth app calls a URL on session start / photo / print / end).
+Proposed to the booth app's developer (not in the API yet): outbound triggers (the booth app calls a
+URL on session start / photo / print / end), result paging.
+
+## Versions
+
+The API reports its version in `status.app.apiVersion` and `commands.apiVersion`. The path stays
+`/api/v1`; the minor number goes up when a call or field is added.
+
+| API | Booth app | Adds |
+|---|---|---|
+| 1.1 | the version after 5.9.2.0 | `covers=1` on templates / categories, `result` + `result/file`, `status.result.id`, errors `no_result`, `unknown_result`, `no_thumbnail`, `expired` |
+| 1 | 5.9.2.0 | the first release |

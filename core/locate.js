@@ -1,16 +1,12 @@
-// Which booth app is this, and where is it installed? The booth app comes in brand builds with
-// different exe names and install folders:
-//   QBooth.exe (product "QBooth", default folder C:\QBoothAIV5) · BleepShare.exe ("BleepShareAI",
-//   C:\BleepShareV5) · XBooth.exe ("XBooth", C:\XBoothV5)
+// Which booth app is this? It comes in brand builds with different exe names:
+//   QBooth.exe (product "QBooth") · BleepShare.exe ("BleepShareAI") · XBooth.exe ("XBooth")
 // so nothing here guesses a name. The process that LISTENS on the Local API port is the booth app:
-// its pid (to raise its event window), its exe and its folder (<folder>\events holds the event
-// files and covers). Only for a booth on this PC (host 127.0.0.1 / localhost); Windows only.
+// its pid (to raise its event window) and its exe. Only for a booth on this PC (host 127.0.0.1 /
+// localhost); Windows only. Its files are never read: covers and results come from the Local API.
 import { spawn } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
 
 export const BRAND_EXES = ['QBooth', 'BleepShare', 'XBooth'];
-export const FOLDER_GUESSES = ['C:\\QBoothPro', 'C:\\QBoothAIV5', 'C:\\BleepShareV5', 'C:\\XBoothV5', 'C:\\QBoothAI'];
 
 // The product name the Local API reports (status.app.name) as people write it.
 export function brandName(appName) {
@@ -38,12 +34,4 @@ export function locateBooth(host, port) {
       resolve(+pid && exe ? { pid: +pid, exe, dir: path.dirname(exe) } : null);
     });
   });
-}
-
-// The booth app's folder for covers: the setting when given, else the located app's folder,
-// else the first usual install folder that has an events folder.
-export function resolveBoothDir(setting, located) {
-  if (setting) return setting;
-  if (located?.dir && fs.existsSync(path.join(located.dir, 'events'))) return located.dir;
-  return FOLDER_GUESSES.find(d => fs.existsSync(path.join(d, 'events'))) || FOLDER_GUESSES[0];
 }

@@ -8,7 +8,7 @@ kedua, penghitung, antrean printer, apa saja. Kit ini mengerjakan semua "pipa" y
 setiap app seperti itu, jadi sebuah app cukup berisi idenya saja:
 
 - bicara dengan aplikasi booth (password disimpan di server, status di-poll, perubahan dijadikan event),
-- cover template (Local API tidak punya gambar),
+- cover template dan hasil tamu (foto / GIF / video) sebagai URL biasa untuk `<img>` / `<video>`,
 - jendela desktop yang tampil di atas aplikasi booth hanya di page yang Anda pilih dan
   mengembalikan layar ke aplikasi booth saat tamu lanjut,
 - layar pengaturan operator (dengan PIN), layar tunggu, ikon tray, kunci rahasia,
@@ -47,17 +47,19 @@ tekan **S** (atau ikon tray) → Pengaturan → Booth: port + password → **Tes
  ┌─ the booth app ────────────────┐        ┌─ your app (one exe, or `serve` in a browser) ──────────────┐
  │ event window (kiosk)           │        │ shell/main.js   Electron: window/tray/keys, raises booth app│
  │ Local API  :8730  ◀────────────┼─HTTP───┤ core/server.js  your app's server :39xx                     │
- │ events\<id>\event.json + covers│◀─read──┤   core/watch.js   polls status -> events                    │
- └────────────────────────────────┘  only  │   core/covers.js  covers from the event folder              │
-                                           │   <app>/server.js your optional server code                 │
-                                           │      ▲ /state /cover /qb/* /booth/* /settings               │
+ │  status, templates + covers,   │  only  │   core/watch.js   polls status -> events                    │
+ │  result + result files         │        │   core/covers.js  covers from the Local API, cached         │
+ └────────────────────────────────┘        │   <app>/server.js your optional server code                 │
+                                           │      ▲ /state /cover /result /qb/* /booth/* /settings       │
                                            │ page: <app>/public + /kit/*.js (web/)                        │
                                            └──────────────────────────────────────────────────────────────┘
 ```
 
 - **Page** (HTML/JS Anda) hanya bicara dengan server-nya sendiri. Page tidak pernah melihat password Local API.
-- **Server** (satu per app, di 127.0.0.1) mem-poll aplikasi booth, menyajikan cover dan pengaturan, dan
-  meneruskan aksi. Kode server Anda sendiri (opsional) berjalan di dalamnya.
+- **Server** (satu per app, di 127.0.0.1) mem-poll aplikasi booth, menyajikan cover, hasil dan
+  pengaturan, dan meneruskan aksi. Kode server Anda sendiri (opsional) berjalan di dalamnya. Server
+  tidak membaca apa pun dari folder aplikasi booth: semuanya lewat HTTP, jadi booth di PC lain
+  bekerja sama persis.
 - **Shell** (Electron) menampilkan page dan memindahkan jendela (full / setup / hidden) sesuai
   perintah server. Di browser (`serve`) tidak ada shell: page-nya sama, tanpa aturan jendela.
 
@@ -66,16 +68,15 @@ tekan **S** (atau ikon tray) → Pengaturan → Booth: port + password → **Tes
 ### Brand: QBooth, BleepShare, XBooth
 
 Aplikasi booth hadir dalam tiga build brand dari program yang sama: **QBooth.exe** (melapor "QBooth"),
-**BleepShare.exe** ("BleepShareAI") dan **XBooth.exe** ("XBooth"), masing-masing dengan folder instal
-sendiri (bawaannya C:\QBoothAIV5, C:\BleepShareV5, C:\XBoothV5). Local API-nya sama. Jadi:
+**BleepShare.exe** ("BleepShareAI") dan **XBooth.exe** ("XBooth"). Local API-nya sama. Jadi:
 
 - **Jangan pernah menulis nama brand di tampilan app.** Tulis `{booth}` di teks Anda: `kit.t()`
   mengisinya dengan nama aplikasi booth yang tersambung (`status.app.name`, "QBooth" ditampilkan
   "Q-Booth"), atau pengaturan **Nama brand** dari operator, atau sebelum pernah tersambung kata netral
   ("the booth app" / "aplikasi booth" / "拍照亭应用"). `kit.brand` dan `booth.state.brand` menyimpannya.
 - Kit menemukan aplikasi booth lewat **proses yang mendengarkan port Local API** (`core/locate.js`):
-  pid-nya (untuk menaikkan jendela event-nya) dan folder-nya (cover). Tidak ada nama exe atau folder
-  yang ditebak; folder yang umum hanya cadangan. `Pengaturan → Folder aplikasi booth` menimpanya.
+  pid dan exe-nya, untuk menaikkan jendela event-nya. Tidak ada nama exe atau folder yang ditebak,
+  dan tidak ada yang dibaca dari folder-nya: cover dan hasil datang dari Local API.
 - Tes brand lain dengan mock: `"mockBrand": "XBooth"` (atau `BleepShareAI`) di config.json.
 
 ## 3. Struktur folder
@@ -84,16 +85,18 @@ sendiri (bawaannya C:\QBoothAIV5, C:\BleepShareV5, C:\XBoothV5). Local API-nya s
 App Kit/
   core/          Node modules (no dependencies)
     qbooth.js      Local API client: createClient({ host, port, password })
-    watch.js       status polling -> events (page, phase, session, event, templates, busy, online)
-    covers.js      covers from <qboothDir>\events\<id> (read only); listEvents, savedTemplates
+    watch.js       status polling -> events (page, phase, session, event, templates, busy, result, online)
+    covers.js      template / category covers from the Local API (covers=1), kept in memory
     server.js      the app server: createAppServer({ appDir, mock }), window modes, endpoints
     settings.js    kit settings fields + app fields -> config.json, settings screen data
-    mock.js        a fake booth app (same API), optionally with a real event's templates
+    locate.js      the booth app's process on the Local API port (pid + exe, to raise its window)
+    mock.js        a fake booth app (API 1.1), optionally playing a real event
+    mock-event.js  reads an event folder (event.json) for the mock only
     listen.js      listen with retry (a closing old copy may still hold the port)
   shell/         Electron: main.js (the desktop app), winfront.js (raise windows), icon.png / .ico
   web/           browser modules, served at /kit/
     kit.js         startKit(): config, texts, settings, waiting screen, polling   <- start here
-    qbooth.js      booth: events, state, send(), startWithTemplate(), coverUrl(), hold()
+    qbooth.js      booth: events, state, send(), startWithTemplate(), coverUrl(), result(), hold()
     layout.js      fit(), place(), contain(): any screen size and ratio
     audio.js       Sound: BGM loop + effects made by code
     fx.js          Fx: confetti and sparkles
@@ -203,23 +206,33 @@ Salin `<meta>` Content-Security-Policy dari index.html template (semuanya mulai 
 | `booth.on('event', fn)` | `{ event: { id, name } \| null }` |
 | `booth.on('templates', fn)` | `[{ id, name, index, onScreen, categoryId }]` template event yang sedang berjalan yang bisa dipilih tamu |
 | `booth.on('busy', fn)` | `{ dialog, processing }` |
+| `booth.on('result', fn)` | `{ id, index, count }` hasil tamu baru sudah siap (`status.result` dengan `id` baru; API 1.1) |
 | `booth.on('online' / 'offline', fn)` | Local API menjawab / tidak |
 | `booth.state` | state terakhir |
 | `booth.can(action)` | apakah aksi itu sedang ada di `available` |
 | `await booth.send(action, params)` | aksi Local API apa pun (`'camera/capture'`, `'template/select', { id }` ...) → `{ ok, accepted }` atau `{ ok: false, error: { code } }`. `event/start` / `event/stop` butuh PIN pengaturan: hanya untuk operator |
 | `await booth.startWithTemplate(id)` | mulai sesi dengan template itu dari posisi aplikasi booth di mana pun (Welcome: langsung; di picker: kembali ke Welcome dulu) |
-| `await booth.read('events' \| 'templates' \| 'categories', params)` | pembacaan |
-| `booth.coverUrl(templateId)` | `/cover/<id>`: gambar cover, 404 kalau tidak ada di PC ini (tampilkan placeholder) |
-| `booth.categoryCoverUrl(id)`, `booth.eventCoverUrl()` | cover kategori / event |
+| `await booth.read('events' \| 'templates' \| 'categories' \| 'result', params)` | pembacaan |
+| `booth.coverUrl(templateId)` | `/cover/<id>`: gambar cover, 404 kalau aplikasi booth tidak mengirimnya (tampilkan placeholder) |
+| `booth.categoryCoverUrl(id)` | cover kategori, dengan cara yang sama |
+| `await booth.result()` | hasil tamu terakhir: `{ ok, data: { id, onScreen, items: [{ index, kind, mime, bytes, canShare, url, thumbUrl }] } }`; `url` / `thumbUrl` mengarah ke server kit sendiri |
+| `booth.resultFileUrl(index, thumb)` | `/result/file?index=n[&thumb=1]`: satu file hasil (foto / GIF / video) atau thumbnail-nya, untuk `<img>` / `<video>` |
 | `booth.hold(ms)` | pertahankan overlay selama ms (≤ 20 dtk) setelah aplikasi booth pindah: selesaikan perayaan |
 
-### 5.3 Cover
+### 5.3 Cover dan hasil tamu
 
 ```js
 const img = new Image();
 img.onload = () => card.style.backgroundImage = `url("${img.src}")`;
-img.onerror = () => card.textContent = name.charAt(0);   // no cover here: a placeholder
+img.onerror = () => card.textContent = name.charAt(0);   // no cover: a placeholder
 img.src = booth.coverUrl(template.id);
+
+booth.on('result', async () => {
+  const r = await booth.result();
+  if (!r.ok) return;                                      // no_result: the next guest already started
+  const first = r.data.items[0];
+  preview.src = first.thumbUrl;                           // = booth.resultFileUrl(first.index, true)
+});
 ```
 
 Asalnya dari mana: bagian 8.
@@ -264,8 +277,8 @@ dan putar dengan `new Audio('click.mp3')` (mp3 / wav / ogg disajikan).
 
 ## 6. Kode server Anda (`<app>/server.js`, opsional)
 
-Untuk hal yang tidak bisa dilakukan page: menghitung, mencatat log, menulis file di luar folder
-booth, memanggil layanan lain, bereaksi terhadap aplikasi booth saat tidak ada page yang terbuka, menambah endpoint.
+Untuk hal yang tidak bisa dilakukan page: menghitung, mencatat log, menyimpan file Anda sendiri,
+memanggil layanan lain, bereaksi terhadap aplikasi booth saat tidak ada page yang terbuka, menambah endpoint.
 
 ```js
 export default function (kit) {
@@ -281,10 +294,10 @@ export default function (kit) {
 | `kit.` | |
 |---|---|
 | `cfg()` | pengaturan saat ini (termasuk rahasia: jangan pernah kirim ke page) |
-| `client` | client Local API (`core/qbooth.js`): `status()`, `templates()`, `send(cmd, params)`, `selectTemplate(id)`, `capture()`, … |
-| `watch` | poller (`core/watch.js`): `on('page' \| 'phase' \| 'session' \| 'event' \| 'templates' \| 'busy' \| 'online' \| 'offline' \| 'status')`, `state` |
+| `client` | client Local API (`core/qbooth.js`): `status()`, `templates(eventId, { covers: 1 })`, `result()`, `resultFile(index, thumb, headers)` (Response fetch mentah, untuk di-stream), `send(cmd, params)`, `selectTemplate(id)`, `capture()`, … |
+| `watch` | poller (`core/watch.js`): `on('page' \| 'phase' \| 'session' \| 'event' \| 'templates' \| 'busy' \| 'result' \| 'online' \| 'offline' \| 'status')`, `state` |
 | `startWithTemplate(id)` | sama seperti di page |
-| `covers` | `core/covers.js` |
+| `covers` | `core/covers.js`, async: `template(id, eventId?)`, `category(id, eventId?)` → `{ type, data (Buffer), width, height, video, hash }` atau null; `list(eventId?)` → `{ templates, categories }` beserta `cover`-nya; `forget()` (ambil ulang lain kali) |
 | `route(method, path, handler)` | endpoint Anda; `path` boleh diakhiri `*`; handler `(req, res, { url, body(), json(code, obj) })`. Awali path Anda dengan id app Anda |
 | `log(...)` | ke console / `logs/app.log` |
 | `manifest` | app.json |
@@ -296,7 +309,7 @@ export default function (kit) {
 
 Operator membukanya dengan **S**, **ikon tray**, **Ctrl+Alt+Shift+S**, atau dengan menahan
 pojok kiri atas selama 3 dtk (PIN dulu kalau sudah diatur). Tab: **Booth** (berjudul nama aplikasi booth; alamat, port, password +
-Tes koneksi, folder aplikasi booth, mode uji), **app Anda** (bahasa + field Anda), **Layar**
+Tes koneksi, nama brand, mode uji), **app Anda** (bahasa + field Anda), **Layar**
 (overlay, layar, sembunyikan / tampilkan, tombol pintas), **Keamanan** (PIN).
 
 Field Anda di `app.json` → `settings`:
@@ -328,24 +341,44 @@ password Local API: jangan pernah di-commit, jangan pernah dimasukkan ke paket a
   menu, membuka exe lagi, …) dalam bahasa yang dipilih, lalu tombol milik app dari
   `app.json` → `shortcuts`.
 
-## 8. Cover
+## 8. Cover dan hasil (Local API 1.1)
 
-Local API mengembalikan id dan nama template, tanpa gambar. Kit membacanya dari folder event
-milik aplikasi booth sendiri **di PC yang sama**, hanya dibaca:
+Keduanya hanya datang dari Local API; kit tidak membaca apa pun dari folder aplikasi booth, jadi
+app di **PC lain** (Allow LAN di aplikasi booth) mendapatkannya dengan cara yang sama.
 
-1. `<qboothDir>\events\<eventId>\event.json` → `templates[].cover` (gambar di folder event),
-2. kalau tidak ada, file template `templates[].path` (`.qso` / `.qsc`, JSON) → `event_info.preview_image[0].mBase64`,
-3. kalau tidak ada juga, tidak ada apa-apa: gambar placeholder (huruf pertama, sebuah warna).
+**Butuh aplikasi booth dengan Local API 1.1** (versi setelah 5.9.2.0; `status.app.apiVersion`
+`"1.1"`). Dengan aplikasi booth 1.0 semua app tetap jalan: cover 404 (gambar placeholder) dan
+panggilan result menjawab `not_found`. Selalu rancang untuk keduanya.
 
-`qboothDir` kosong secara default: aplikasi booth di port Local API dicari dan foldernya dipakai (Pengaturan → Booth). Cover kategori: `categories[].cover`;
-cover event-nya sendiri: `coverImage`.
+**Cover.** `templates?covers=1` / `categories?covers=1` mengirim setiap cover langsung di JSON
+(`{ mime, width, height, video, hash, data: "data:...;base64,..." }`), dengan ukuran yang
+ditampilkan picker booth itu sendiri; cover video mengirim frame poster-nya (`video: true`).
+`core/covers.js` memintanya sekali per event / daftar template (cover tidak di-poll), menyimpannya
+di memori dan menyajikannya sebagai gambar:
 
-- Page: `booth.coverUrl(id)`. Server: `kit.covers.coverOf(dir, eventId, templateId)` → `{ type, data, from }`.
+- Page: `booth.coverUrl(id)` → `/cover/<templateId>`, `booth.categoryCoverUrl(id)` →
+  `/category-cover/<id>`; keduanya menerima `?event=<id>` untuk event yang tidak sedang berjalan.
+  404 = tidak ada cover: gambar placeholder (huruf pertama, sebuah warna). API tidak punya cover event.
+- Server: `await kit.covers.template(id, eventId?)` → `{ type, data, width, height, video, hash }` atau null.
 - Command line: `node tools/covers.mjs` menampilkan daftar event; `node tools/covers.mjs "<event name | id>" --out <folder>`
-  mengekspor semua cover (`01_<name>.jpg` …) + `manifest.json`.
-- App di **PC lain** (Allow LAN di aplikasi booth) tidak punya akses ke file-file ini: cover 404. Rancang
-  dengan placeholder. (`GET templates/{id}/cover` di Local API sudah diusulkan ke developer aplikasi booth.)
-- **Jangan pernah menulis ke folder aplikasi booth.** Tool covers menolak `--out` di dalamnya.
+  mengekspor semua cover (`01_<name>.jpg` …) + `manifest.json` (`{ index, id, name, studio, categoryId,
+  file, width, height, video }` per template). Koneksi: `--app <app>` (config.json-nya),
+  `--host --port --password`, atau `--mock`.
+
+**Hasil.** Output tamu terakhir (foto, GIF, video), sejak page Result tampil sampai tamu
+berikutnya mulai. Hanya tamu terakhir: hasil sebelumnya sudah tidak ada.
+
+- `status.result` = `{ count, index, id }`; `id` baru = hasil baru → `booth.on('result')` /
+  `kit.watch.on('result')`.
+- `await booth.result()` → `{ id, onScreen, items: [{ index, kind, mime, bytes, canShare, url, thumbUrl }] }`
+  (`kind` `photo` | `gif` | `video`). Kit menulis ulang `url` / `thumbUrl` ke
+  `/result/file?index=n[&thumb=1]` miliknya sendiri (= `booth.resultFileUrl(index, thumb)`), yang
+  men-stream file dari aplikasi booth dengan password ditambahkan dan byte range diteruskan, jadi
+  `<img>` dan `<video>` (termasuk seek) langsung jalan. `no_result` (409): belum ada, atau tamu
+  berikutnya sudah mulai.
+- Hasil itu milik tamu: tampilkan, jangan disimpan (bagian 12).
+
+**Jangan pernah menulis ke folder aplikasi booth.** Kit sama sekali tidak perlu menyentuhnya.
 
 ---
 
@@ -375,9 +408,13 @@ refused | none`.
 ### 10.1 Aplikasi booth palsu (mock)
 
 `--mock` (atau Pengaturan → Booth → Mode uji) menjalankan `core/mock.js` di port 8749: API,
-page, fase, dan error yang sama. Isi **Mode uji: pinjam event** dengan id event dari
-`<qboothDir>\events` (daftarnya: `node tools/covers.mjs`) dan mock memakai template-nya, jadi
-cover-nya asli. `mock.auto` di app.json: sesi berjalan sendiri, atau menunggu perintah Anda.
+page, fase, dan error yang sama, API 1.1: cover (kartu gambar untuk setiap template demo) dan
+hasil ("foto" sebuah sesi adalah cover template-nya). Isi **Mode uji: pinjam event** (`mockEvent`)
+dengan **folder yang berisi event.json**: `.qevent` yang diekstrak, atau salinan folder event.
+Mock lalu memainkan event itu dengan template, kategori, dan cover-nya (`core/mock-event.js` membaca
+file cover milik event, kalau tidak ada gambar pratinjau di file template). Hanya di sini kit
+membaca folder event, dan hanya folder yang Anda berikan. `mock.auto` di app.json: sesi berjalan
+sendiri, atau menunggu perintah Anda.
 
 Panggilan khusus mock (untuk tes): `POST /api/v1/mock/dialog {on}` (dialog aplikasi booth), `POST
 /api/v1/mock/event {on}` (mulai / hentikan event). Password `mock`.
@@ -427,7 +464,8 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 3. **Dialog milik aplikasi booth.** Biarkan `hideOnDialog: true`; selama `busy.dialog` setiap aksi gagal.
 4. **Rahasia tetap di server.** Password Local API dan field `secret` Anda tidak pernah sampai ke
    page, log, screenshot, atau git.
-5. **Folder aplikasi booth hanya dibaca.** Jangan pernah menulis ke `C:\QBoothPro` (atau `qboothDir`).
+5. **Jangan sentuh folder aplikasi booth.** Jangan pernah menulis ke `C:\QBoothPro` (atau folder
+   instal mana pun); kit juga tidak membaca apa pun darinya: cover dan hasil datang dari Local API.
 6. **Data tamu.** Jangan simpan foto, suara, atau wajah kecuali tujuan app memang membutuhkannya dan
    operator mengetahuinya.
 7. **Satu port per app**, unik (app.json).
@@ -441,7 +479,7 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 - [ ] `node tools/new-app.mjs <id> "<Name>"`; isi `window.showOn` dengan page yang Anda tutupi
 - [ ] teks dalam en / id / zh
 - [ ] layout dari `fit()`; screenshot di 16:9, 9:16, 4:5, 21:9
-- [ ] cover dengan placeholder (tetap jalan tanpa file cover)
+- [ ] cover dengan placeholder, hasil opsional (tetap jalan dengan aplikasi booth Local API 1.0)
 - [ ] aksi hanya saat `booth.can()`; error ditampilkan ke tamu dengan bahasa sederhana
 - [ ] tes mock untuk seluruh alur (`--mock`, event pinjaman), lalu aplikasi booth asli
 - [ ] `node tools/build.mjs <id>`; exe mulai tersembunyi tanpa event, muncul di page yang benar,
@@ -459,8 +497,10 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `GET /kit/<file>` | `web/` milik kit |
 | `GET /config.json` | pengaturan publik + `{ app, mock, desktop, settingsLocked }` |
 | `GET /state` | `{ online, error, mode, overlay, event, page, session, camera, result, busy, available, templates }` |
-| `GET /cover/<templateId>[?event=<id>]`, `/category-cover/<id>`, `/event-cover` | gambar (404 = tidak ada) |
-| `GET /qb/events \| templates \| categories \| commands \| status` | pembacaan Local API (`?eventId=`) |
+| `GET /cover/<templateId>`, `/category-cover/<id>` (`?event=<id>`) | gambar dari Local API (404 = tidak ada) |
+| `GET /result` | hasil tamu terakhir, `url` / `thumbUrl` ditulis ulang ke `/result/file` |
+| `GET /result/file?index=n[&thumb=1]` | file itu, di-stream dari aplikasi booth (byte range) |
+| `GET /qb/events \| templates \| categories \| result \| commands \| status` | pembacaan Local API (`?eventId=`) |
 | `POST /qb/<action>` | aksi Local API (event/start, event/stop butuh `x-settings-pin`) |
 | `POST /booth/start-with-template {id}` | sesi dengan template itu dari page mana pun |
 | `POST /app/hold {ms}` | pertahankan overlay (≤ 20 dtk) |
@@ -469,4 +509,4 @@ node tools/build.mjs <app>     # dist/<Name>-win32-x64/<Name>.exe (about 360 MB,
 | `GET/POST /settings`, `POST /settings/unlock {pin}`, `/settings/test`, `/app/hide`, `/app/quit` | operator (header PIN `x-settings-pin`) |
 | `kit.route(...)` Anda | dicek lebih dulu |
 
-Versi: Electron 45, Node 22, Local API v1. Kit tidak punya dependensi npm saat runtime.
+Versi: Electron 45, Node 22, Local API v1 (1.1 untuk cover dan hasil). Kit tidak punya dependensi npm saat runtime.

@@ -5,9 +5,12 @@
 //   GET  /kit/<file>            the kit's browser modules (web/): qbooth.js, layout.js, audio.js ...
 //   GET  /config.json           the app's public settings + { app, mock, desktop, settingsLocked }
 //   GET  /state                 { online, error, mode, event, page, session, camera, result, busy, available, templates }
-//   GET  /cover/<templateId>    a template's cover image (404: none on this PC -> draw a placeholder)
-//   GET  /category-cover/<id>   a category's cover;  GET /event-cover  the event's own cover
-//   GET  /qb/<read>             events | templates | categories   (?eventId=...)
+//   GET  /cover/<templateId>    a template's cover image, from the Local API (404: none -> draw a placeholder)
+//   GET  /category-cover/<id>   a category's cover   (both take ?event=<id> for an event that isn't running)
+//   GET  /result                the latest guest's results (API 1.1): { id, onScreen, items: [{ index, kind, mime, url, thumbUrl ... }] },
+//                               url / thumbUrl pointing here (/result/file?index=n[&thumb=1])
+//   GET  /result/file?index=n[&thumb=1]   that file, streamed from the booth app (byte ranges: video seeks)
+//   GET  /qb/<read>             events | templates | categories | result   (?eventId=...)
 //   POST /qb/<action>           any Local API action, e.g. /qb/template/select {id}; event/start|stop need the PIN
 //   POST /booth/start-with-template {id}   start a session with that template from wherever Q-Booth is
 //   POST /app/hold {ms}         keep the window up for ms (an animation after the hand-over), max 20 s
@@ -17,6 +20,7 @@
 //
 // An app may add its own server side in <app>/server.js:  export default function (kit) { ... }
 // kit = { cfg(), client, watch, state, route(method, path, handler), covers, log }  (see docs/GUIDE.md)
+// Nothing is read from the booth app's folder: covers and results come from its Local API.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,8 +29,9 @@ import { listenRetry } from './listen.js';
 import { createClient, ACTIONS, READS } from './qbooth.js';
 import { watchBooth } from './watch.js';
 import { startMock } from './mock.js';
-import * as covers from './covers.js';
-import { locateBooth, resolveBoothDir, brandName } from './locate.js';
+import { createCovers } from './covers.js';
+import { readEventFolder } from './mock-event.js';
+import { locateBooth, brandName } from './locate.js';
 import { loadConfig, readSettings, saveSettings, publicValues, configFile } from './settings.js';
 
 const KIT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -55,14 +60,18 @@ export async function createAppServer({ appDir, mock } = {}) {
   // ---- Q-Booth ----
   let conn = { ...cfg.qbooth };
   if (MOCK) {
-    const dir = resolveBoothDir(cfg.qboothDir, null);
-    const real = cfg.mockEvent && covers.savedTemplates(dir, cfg.mockEvent);
-    const ev = real?.length ? covers.readEvent(dir, cfg.mockEvent) : null;
+    // Test mode: borrow an event = a folder with its event.json (an extracted .qevent, a copy of an event)
+    const ev = cfg.mockEvent ? readEventFolder(cfg.mockEvent) : null;
+    if (cfg.mockEvent && !ev?.templates.length) console.warn(`[${manifest.id}] mockEvent: no event.json with templates in ${cfg.mockEvent}`);
     conn = { host: '127.0.0.1', port: 8749, password: 'mock' };
-    listening.push(await startMock({ ...conn, appName: (cfg.mockBrand || 'QBooth') + ' (mock)', auto: manifest.mock?.auto ?? true, ...(real?.length ? { eventId: cfg.mockEvent, eventName: ev?.name || cfg.mockEvent, templates: real } : {}) }));
+    listening.push(await startMock({ ...conn, appName: (cfg.mockBrand || 'QBooth') + ' (mock)', auto: manifest.mock?.auto ?? true,
+      ...(ev?.templates.length ? { eventId: ev.id, eventName: ev.name, templates: ev.templates, categories: ev.categories } : {}) }));
   }
   const client = createClient(conn);
   const watch = watchBooth(client, { pollMs: cfg.pollMs });
+  const covers = createCovers(client);
+  watch.on('templates', () => covers.forget()); // a new list (another event, an edit): fetch the covers again
+  watch.on('event', () => covers.forget());
 
   // ---- the window's mode ----
   //   full   the app, full screen (on top of Q-Booth in overlay mode)
@@ -80,9 +89,9 @@ export async function createAppServer({ appDir, mock } = {}) {
     if (w.hideOnDialog !== false && s.busy?.dialog) return 'hidden';
     return w.showOn.includes(s.page) ? 'full' : 'hidden';
   }
-  // ---- the booth app: its name (brand) and where it runs ----
+  // ---- the booth app: its name (brand) and its process ----
   // Brand builds: QBooth.exe / BleepShare.exe / XBooth.exe. The name comes from the Local API
-  // (status.app.name), the folder and pid from the process listening on the Local API port.
+  // (status.app.name), the pid (to raise its event window) from the process on the Local API port.
   let located = null, locating = false, locatedAt = 0, lastBrand = null;
   async function relocate() {
     if (locating || MOCK) return;
@@ -96,7 +105,6 @@ export async function createAppServer({ appDir, mock } = {}) {
     if (b) lastBrand = b;
     if (!MOCK && (!located || located.pid && Date.now() - locatedAt > 60000) && Date.now() - locatedAt > 10000) relocate();
   });
-  const boothDir = () => resolveBoothDir(cfg.qboothDir, located);
   const brand = () => cfg.brandName || lastBrand || null; // null = not known yet: say "the booth app"
 
   function statusText() {
@@ -130,7 +138,7 @@ export async function createAppServer({ appDir, mock } = {}) {
   // ---- HTTP ----
   const sendJson = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(obj)); };
   const readBody = req => new Promise(resolve => { const c = []; req.on('data', d => c.push(d)); req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(c).toString() || '{}')); } catch { resolve({}); } }); });
-  const sendImage = (res, img) => { if (!img) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'max-age=300' }); res.end(img.data); };
+  const sendImage = (res, img) => { if (!img) { res.writeHead(404); return res.end(); } res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'max-age=300', ...(img.hash ? { ETag: '"' + img.hash + '"' } : {}) }); res.end(img.data); };
   const pinOk = pin => !cfg.settingsPin || String(pin || '') === String(cfg.settingsPin);
   const sendFile = (res, base, rel) => {
     const file = path.resolve(base, '.' + path.sep + rel);
@@ -152,14 +160,32 @@ export async function createAppServer({ appDir, mock } = {}) {
         result: s?.result || null, busy: s?.busy || null, available: s?.available || [], templates: watch.state.templates,
       });
     }
-    if (p.startsWith('/cover/')) return sendImage(res, (u.searchParams.get('event') || watch.state.status?.event?.id) && covers.coverOf(boothDir(), u.searchParams.get('event') || watch.state.status.event.id, p.slice(7)));
-    if (p.startsWith('/category-cover/')) return sendImage(res, watch.state.status?.event && covers.categoryCover(boothDir(), watch.state.status.event.id, p.slice(16)));
-    if (p === '/event-cover') return sendImage(res, watch.state.status?.event && covers.eventCover(boothDir(), watch.state.status.event.id));
+    if (p.startsWith('/cover/')) return sendImage(res, await covers.template(p.slice(7), u.searchParams.get('event') || undefined));
+    if (p.startsWith('/category-cover/')) return sendImage(res, await covers.category(p.slice(16), u.searchParams.get('event') || undefined));
+    if (p === '/result') {
+      // the booth's links carry the result id as a token for the booth's own address; the page gets ours
+      const r = await client.result();
+      if (r.ok) r.data.items = (r.data.items || []).map(i => ({ ...i, url: `/result/file?index=${i.index}`, thumbUrl: `/result/file?index=${i.index}&thumb=1` }));
+      return sendJson(res, 200, r);
+    }
+    if (p === '/result/file') {
+      let up;
+      try { up = await client.resultFile(u.searchParams.get('index') || '1', u.searchParams.get('thumb') === '1', req.headers.range ? { range: req.headers.range } : {}); }
+      catch { res.writeHead(502); return res.end(); }
+      const h = { 'Cache-Control': 'no-store' };
+      for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges']) if (up.headers.get(k)) h[k] = up.headers.get(k);
+      res.writeHead(up.status, h);
+      if (req.method === 'HEAD' || !up.body) return res.end();
+      const reader = up.body.getReader();
+      req.on('close', () => reader.cancel().catch(() => { })); // the page went away (a video seek): stop reading
+      for (;;) { const { done, value } = await reader.read().catch(() => ({ done: true })); if (done) break; if (!res.write(value)) await new Promise(r => res.once('drain', r)); }
+      return res.end();
+    }
     if (p.startsWith('/qb/')) {
       const cmd = p.slice(4);
       if (req.method === 'GET' && READS.includes(cmd)) {
         const q = Object.fromEntries(u.searchParams);
-        return sendJson(res, 200, cmd === 'templates' ? await client.templates(q.eventId) : cmd === 'categories' ? await client.categories(q.eventId) : cmd === 'events' ? await client.events() : cmd === 'commands' ? await client.commands() : await client.status());
+        return sendJson(res, 200, cmd === 'templates' ? await client.templates(q.eventId) : cmd === 'categories' ? await client.categories(q.eventId) : cmd === 'events' ? await client.events() : cmd === 'commands' ? await client.commands() : cmd === 'result' ? await client.result() : await client.status());
       }
       if (req.method === 'POST' && ACTIONS.includes(cmd)) {
         if (cmd.startsWith('event/') && !pinOk(req.headers['x-settings-pin'])) return sendJson(res, 403, { ok: false, error: { code: 'pin' } });
@@ -194,13 +220,14 @@ export async function createAppServer({ appDir, mock } = {}) {
     }
     if (p === '/settings' || p.startsWith('/settings/') || p === '/app/hide' || p === '/app/quit') {
       if (!pinOk(req.headers['x-settings-pin'])) return sendJson(res, 403, { ok: false, error: { code: 'pin' } });
-      if (req.method === 'GET' && p === '/settings') return sendJson(res, 200, { ...readSettings(cfg, manifest), file: configFile(appDir), displays: hooks.displays, desktop: hooks.desktop, app: { id: manifest.id, name: manifest.name }, shortcuts: manifest.shortcuts || [], brand: brand(), boothDir: boothDir(), booth: located ? { exe: located.exe } : null });
+      if (req.method === 'GET' && p === '/settings') return sendJson(res, 200, { ...readSettings(cfg, manifest), file: configFile(appDir), displays: hooks.displays, desktop: hooks.desktop, app: { id: manifest.id, name: manifest.name }, shortcuts: manifest.shortcuts || [], brand: brand(), booth: located ? { exe: located.exe } : null });
       if (req.method === 'POST' && p === '/settings') {
         try {
           const r = saveSettings(appDir, manifest, cfg, await readBody(req));
           cfg = loadConfig(appDir, manifest);
           hooks.configChanged?.(cfg); // the shell applies what it can live (the menu button)
           if (!MOCK) client.set(cfg.qbooth);
+          covers.forget();
           watch.refreshTemplates();
           const restart = r.restart && !!hooks.restart;
           if (restart) setTimeout(() => hooks.restart(), 400);
@@ -228,7 +255,7 @@ export async function createAppServer({ appDir, mock } = {}) {
     const mod = await import(pathToFileURL(appServer).href);
     await mod.default?.({
       cfg: () => cfg, client, watch, state: watch.state, covers, log, manifest,
-      appDir, dataDir: process.env.QBK_CONFIG_DIR || appDir, boothDir, brand, // where to keep the app's own files (next to the exe when packaged)
+      appDir, dataDir: process.env.QBK_CONFIG_DIR || appDir, brand, // dataDir: where to keep the app's own files (next to the exe when packaged)
       startWithTemplate,
       route: (method, p, handler) => extraRoutes.push({ method, path: p, handler }),
     });

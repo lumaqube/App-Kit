@@ -13,7 +13,9 @@ of what must never go wrong.
 4. Every action through `booth.can(...)` / `available`; start sessions with
    `booth.startWithTemplate(id)` (it handles Welcome vs the pickers).
 5. Texts in en / id / zh. Layout from `kit.fit()` (sizes in `u`, `W`, `H`), never fixed pixels.
-6. Covers: `booth.coverUrl(id)` with a placeholder on error (an app on another PC gets none).
+6. Covers: `booth.coverUrl(id)` with a placeholder on error (a booth app before Local API 1.1 sends
+   none). Results: `booth.on('result')` + `booth.result()` + `booth.resultFileUrl()` (API 1.1).
+   Both come from the Local API only, so they work the same for a booth on another PC.
 
 ## Never
 
@@ -21,7 +23,10 @@ of what must never go wrong.
   same app runs with QBooth.exe, BleepShare.exe and XBooth.exe: write `{booth}` in texts (`kit.t()`
   fills in the connected booth app's name), never guess an exe or install folder (`core/locate.js`
   finds the booth app by its Local API port). See GUIDE §2 "Brands".
-- **Never write into the booth app's folder** (`C:\QBoothPro`, `qboothDir`): read only.
+- **Never write into the booth app's folder** (`C:\QBoothPro` or any install folder). The kit reads
+  nothing from it either: covers and results come from the Local API. Don't add code that reads
+  event files, template files or install folders (only the mock's `mockEvent` reads an event folder,
+  the one the developer points it at).
 - **Never put a secret anywhere but config.json**: the Local API password and `secret` fields never
   go to the page, a log line, a screenshot, a commit or a package. `config.json` is git-ignored;
   check a package for it before sharing.
@@ -44,6 +49,6 @@ of what must never go wrong.
 
 - `node --check` every changed file.
 - The page at 1920×1080, 1080×1920, 1080×1350, 2560×1080 with the mock (borrow a real event:
-  `mockEvent`) and no page errors.
+  `mockEvent` = a folder with its event.json) and no page errors.
 - The whole flow on the mock (`node tools/qb.mjs watch --mock` style checks or the app's own
   hand-over), then the build (`node tools/build.mjs <id>`) starting hidden with no event.
