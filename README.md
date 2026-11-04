@@ -27,6 +27,7 @@ node tools/qb.mjs watch --mock               # follow the booth app's changes in
 ```
 
 Example app: `apps/hello` (the event's templates as cards with covers; a tap starts the session).
+Its ready exe (Hello Booth): the repo's **Releases** page.
 
 Requirements: Windows 10/11, Node.js 22, the booth app with the Local API on (Settings → Advanced, Expert
 mode); covers and results need Local API 1.1 (the booth app version after 5.9.2.0). No npm
